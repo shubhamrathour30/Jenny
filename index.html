@@ -481,11 +481,12 @@ event,
   ];
   return p.join("\n");
 }
-async function callOne(k){
+async function callOne(k,prompt){
     var m=settings.model||"", res, j;
     if(/^(AIza|AQ\.)/.test(k)){
       var gmodels=(!m||/^claude|^llama/i.test(m))?["gemini-3.8-flash","gemini-flash-latest","gemini-2.5-flash"]:[m];
-      var gbody=JSON.stringify({contents:[{role:"user",parts:[{text:String(prompt)}]}],generationConfig:{maxOutputTokens:900,temperature:0.9,responseMimeType:"application/json"}});
+      var gbody=JSON.stringify({contents:[{role:"user",parts:[{text:String(prompt)}]}],generationConfig:{maxOutputTokens:1500,temperature:0.9,responseMimeType:"application/json",thinkingConfig:{thinkingBudget:0}}});
+      var gbody2=JSON.stringify({contents:[{role:"user",parts:[{text:String(prompt)}]}],generationConfig:{maxOutputTokens:1500,temperature:0.9,responseMimeType:"application/json"}});
       var gerr=null;
       for(var mi=0;mi<gmodels.length;mi++){
         var gm=gmodels[mi];
@@ -496,6 +497,7 @@ async function callOne(k){
           try{
             res=await fetch(urls[ui],{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":k},body:gbody});
             j=await res.json();
+            if(!res.ok&&/thinking/i.test((j.error&&j.error.message)||"")){res=await fetch(urls[ui],{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":k},body:gbody2});j=await res.json()}
             if(!res.ok){gerr=new Error((j.error&&j.error.message)||"API error "+res.status);continue}
             var cand=j.candidates&&j.candidates[0];
             var gt=((cand&&cand.content&&cand.content.parts)||[]).map(function(p){return p.text||""}).join("");
@@ -532,7 +534,7 @@ async function callBrain(prompt){
     var last=null, start=(window.__ki||0)%keys.length;
     for(var i=0;i<keys.length;i++){
       var idx=(start+i)%keys.length;
-      try{var out=await callOne(keys[idx]);window.__ki=idx;return out}
+      try{var out=await callOne(keys[idx],prompt);window.__ki=idx;return out}
       catch(e){last=e;if(!/quota|rate|limit|exhaust|429|resource|overload|busy|unavailable/i.test(e.message||""))throw e}
     }
     throw last;
