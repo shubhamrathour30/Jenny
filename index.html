@@ -360,6 +360,7 @@ function av(cls,on){Array.prototype.forEach.call(document.querySelectorAll(".ava
 function setSpeaking(on){speaking=on;av("speaking",on);refreshStatus()}
 
 /* ---------- voice in ---------- */
+var callBuf="",callHold=null;
 function setListening(on){listening=on;av("listening",on);$("#mic").classList.toggle("on",on);refreshStatus()}
 function startListen(){
   if(!SR){toast("Is browser mein voice input nahi hai. Chrome ya Edge use karo, ya Win+H se bolkar type karo.");return}
@@ -371,7 +372,9 @@ function startListen(){
   rec.onresult=function(ev){
     var interim="";
     for(var i=ev.resultIndex;i<ev.results.length;i++){var r=ev.results[i];if(r.isFinal)finalT+=r[0].transcript+" ";else interim+=r[0].transcript}
-    $("#input").value=(finalT+interim).trim();autosize();if(callActive)$("#capY").textContent="You: "+(finalT+interim).trim();
+    clearTimeout(callHold);
+    var pre=(callActive&&callBuf)?callBuf+" ":"";
+    $("#input").value=(pre+finalT+interim).trim();autosize();if(callActive)$("#capY").textContent="You: "+(pre+finalT+interim).trim();
   };
   rec.onerror=function(ev){
     recErr=true;
@@ -382,7 +385,12 @@ function startListen(){
   rec.onend=function(){
     setListening(false);
     var t=$("#input").value.trim();
-    if(t&&!recErr){ if(practiceTarget)finishPractice(t);else send(t,"voice") }
+    if(t&&!recErr&&callActive&&!practiceTarget&&!busy){
+      callBuf=t;clearTimeout(callHold);
+      callHold=setTimeout(function(){var x=callBuf;callBuf="";if(callActive&&x&&!busy)send(x,"voice")},3500);
+      setTimeout(function(){if(callActive&&!callMuted&&!callMicBlocked&&!listening&&!busy&&!speaking)startListen()},250);
+    }
+    else if(t&&!recErr){ if(practiceTarget)finishPractice(t);else send(t,"voice") }
     else if(practiceTarget&&!t)practiceTarget=null;
     else if(callActive&&!callMuted&&!callMicBlocked&&!busy&&!speaking){setTimeout(function(){if(callActive&&!callMuted&&!listening&&!busy&&!speaking)startListen()},500)}
   };
@@ -457,7 +465,7 @@ mist,
 "Words you already taught him: "+words,
 "",
 "CONTEXT",
-(callActive?"THIS IS A LIVE VOICE CALL: reply in 1 to 2 short spoken sentences, no lists, sound like a phone call with someone you love.":"")+"\n"+"Local time for him: "+now.toLocaleString("en-US",{weekday:"long",hour:"numeric",minute:"2-digit"})+". Practice streak: "+mem.streak+" day(s). "+(hrs===null?"First time talking.":"Last talked "+(hrs<1?"minutes":Math.round(hrs)+" hour(s)")+" ago."),
+(callActive?"THIS IS A LIVE VOICE CALL: reply in 3 to 5 spoken sentences, so the talk is longer and he gets more speaking practice per turn. React to what he said, add something about your day or a follow-up story, then end with one question. No lists, sound like a phone call with someone you love.":"")+"\n"+"Local time for him: "+now.toLocaleString("en-US",{weekday:"long",hour:"numeric",minute:"2-digit"})+". Practice streak: "+mem.streak+" day(s). "+(hrs===null?"First time talking.":"Last talked "+(hrs<1?"minutes":Math.round(hrs)+" hour(s)")+" ago."),
 "",
 "CONVERSATION SO FAR",
 hist,
@@ -730,7 +738,7 @@ function fmtTime(ms){var s=Math.floor(ms/1000);return String(Math.floor(s/60)).p
 async function startCall(){
   if(callActive)return;
   if(!started){$("#startOv").hidden=true;started=true;renderHistory()}
-  callActive=true;callMuted=false;callMicBlocked=false;callStart=Date.now();
+  callActive=true;callBuf="";callMuted=false;callMicBlocked=false;callStart=Date.now();
   $("#callOv").hidden=false;$("#capJ").textContent="";$("#capY").textContent="";$("#callNote").textContent="";
   $("#cbMute").textContent="Mute";$("#cbMute").setAttribute("aria-pressed","false");$("#cbMute").classList.remove("on");
   $("#callTime").textContent="00:00";
@@ -742,7 +750,7 @@ async function startCall(){
 function endCall(){
   if(!callActive)return;
   var dur=Date.now()-callStart;
-  callActive=false;clearInterval(callTimer);stopListen();stopSpeak();
+  callActive=false;callBuf="";clearTimeout(callHold);clearInterval(callTimer);stopListen();stopSpeak();
   try{wakeLock&&wakeLock.release()}catch(e){};wakeLock=null;
   $("#callOv").hidden=true;
   addSys("Call ended. Duration "+fmtTime(dur));
