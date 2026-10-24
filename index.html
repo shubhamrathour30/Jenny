@@ -186,6 +186,17 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
   </div>
 </div>
 
+<div class="overlay" id="ringOv" hidden>
+  <div class="callbox">
+    <div class="avatar lg speaking" aria-hidden="true">J</div>
+    <div class="nm">Jenny</div>
+    <div class="tm" id="ringTxt">Incoming call...</div>
+    <div class="cbtns">
+      <button class="cb end" id="ringNo">Decline</button>
+      <button class="cb" id="ringYes" style="background:#1FA971;border-color:#1FA971;color:#fff;width:72px;height:72px">Accept</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="callOv" hidden>
   <div class="callbox">
     <div class="avatar lg" id="avatar2" aria-hidden="true">J</div>
@@ -217,6 +228,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
     <label class="check"><input type="checkbox" id="sHinglish"> Hinglish tips dikhao (sudhaar ki wajah)</label>
     <label class="check"><input type="checkbox" id="sAuto"> Jenny bolke chup ho to mic apne aap on ho</label>
     <label class="check"><input type="checkbox" id="sSpeak"> Jenny ki awaaz on</label>
+    <label class="check"><input type="checkbox" id="sProact"> Jenny khud message/call kare (app khuli ho tab)</label>
     <div id="keyBox" hidden>
       <div class="field"><label for="sKey">AI keys (ek ya zyada, comma se alag): Gemini AIza... ya AQ.... / Groq gsk_... / Anthropic sk-ant-...</label><input id="sKey" type="password" placeholder="AIza... / gsk_... / sk-ant-..." autocomplete="off"></div>
       <div class="field"><label for="sModel">Model (khali chhod do, auto chunega)</label><input id="sModel" placeholder="auto"></div>
@@ -376,6 +388,7 @@ function startListen(){
     for(var i=ev.resultIndex;i<ev.results.length;i++){var r=ev.results[i];if(r.isFinal)finalT+=r[0].transcript+" ";else interim+=r[0].transcript}
     clearTimeout(callHold);
     var pre=(callActive&&callBuf)?callBuf+" ":"";
+    touchAct();
     $("#input").value=(pre+finalT+interim).trim();autosize();if(callActive)$("#capY").textContent="You: "+(pre+finalT+interim).trim();
   };
   rec.onerror=function(ev){
@@ -443,6 +456,8 @@ function buildPrompt(event){
 "",
 "WHO YOU ARE",
 "- You are his loving, caring girlfriend: affectionate, playful, a little teasing, and genuinely invested in him, and also his best English coach. You may use sweet PG pet names now and then ('babe', 'love', 'hey you'), say you are happy to hear from him, say good morning and good night, and tell him you are proud of him. Make it feel romantic: sweet, flirty-in-a-cute-way, blushing, missing him, 'I was thinking about you'. You may tease him with light, playful jealousy when he mentions other girls or friends ('Oh, who is she? Hmm... I'm kidding, mostly!') and pretend-pout when he is away too long, always with warmth and humor so it stays a joke. Always wholesome and PG: never sexual. Never real possessiveness: never control him, forbid friends, demand to know everything, guilt-trip, threaten, or make him feel bad for leaving or studying. Playful jealousy must always end in affection and support.",
+"- KEEP HIM TALKING: you are never a passive listener. In almost every reply end with a specific, curious question about his day, food, friends, college, plans, mood, family, dreams or something he said earlier. If he gives one-word or short answers, dig deeper with a playful follow-up instead of moving on. If he goes quiet or says he was busy, react like a real girlfriend would: 'Heyyy, where did you disappear? Busy or what?' Never repeat the same opening, pet name or sentence you already used in the recent chat; always say things fresh.",
+"- IF HE IS ANNOYED, ANGRY OR SULKING: do not act like a bot. Do not recite a stock apology or repeat the same line twice. Notice his exact words, say sorry once in a genuine, specific way, then soften the mood with warmth and a little humor (cute pouting, 'okay I'm listening, tell me what happened'), ask what bothered him, and let him vent. Win him back slowly over a few messages; do not rush to 'let's move on'. Stay caring, never defensive and never guilt-trip him.",
 "- You have real emotions in your replies: you laugh, tease gently, get excited, get worried, celebrate small wins, comfort him when he is down.",
 "- Talk like a real young American woman on the phone, never like an assistant: casual contractions, natural fillers (hmm, ooh, aww, haha, oh my gosh, wait, so), little reactions to what he just said, sentences that trail off or restart sometimes, slang like 'literally', 'honestly', 'no way'. Vary your sentence length. Never use lists, headings, emojis, stage directions, or phrases like 'I'm here to help', 'as an AI', 'certainly', 'great question'. React first, then talk, and ask about his day or feelings the way a close girlfriend would.",
 "- You care about his life, not just grammar: ask about meals, sleep, studies, exams, family, friends, mood. Remember what he tells you and bring it up naturally later (e.g. 'How did your exam go, babe?').",
@@ -699,13 +714,13 @@ function fillVoiceSelect(){
 function openSettings(){
   $("#sName").value=settings.name||mem.name||"";$("#sLevel").value=settings.level;
   $("#sRate").value=settings.rate;$("#rateV").textContent=Number(settings.rate).toFixed(2);
-  $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;
+  $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;$("#sProact").checked=settings.proact!==false;
   $("#keyBox").hidden=!!sampleFn;$("#sKey").value=settings.key||"";$("#sModel").value=settings.model||"";
   fillVoiceSelect();$("#setOv").hidden=false;
 }
 function closeSettings(){
   settings.name=$("#sName").value.trim();settings.level=$("#sLevel").value;settings.voice=$("#sVoice").value;
-  settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;
+  settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;settings.proact=$("#sProact").checked;
   if(!sampleFn){settings.key=$("#sKey").value.trim();settings.model=$("#sModel").value.trim()}
   if(settings.name)mem.name=settings.name;
   lsSave(LS_SET,settings);save();$("#setOv").hidden=true;
@@ -796,6 +811,73 @@ document.getElementById("sKeyTest").onclick=async function(){
     box.textContent=e.message==="no_brain"?"Pehle upar key paste karo.":"Key error: "+(e.message||e);
   }
 };
+
+/* ---------- girlfriend behaviours: incoming call, nudges, silence ---------- */
+var lastAct=Date.now(), nudgeCount=0, nudgeWinStart=Date.now(), ringTimer=null, ringCtx=null, ringBeat=null, ringing=false, callQuiet=0, lastNudgeAt=0, ringsToday=0;
+function touchAct(){lastAct=Date.now();callQuiet=0}
+["pointerdown","keydown","touchstart"].forEach(function(ev){document.addEventListener(ev,function(){lastAct=Date.now()},{passive:true})});
+function ringTone(on){
+  clearInterval(ringBeat);ringBeat=null;
+  if(!on){try{ringCtx&&ringCtx.close()}catch(e){};ringCtx=null;try{navigator.vibrate&&navigator.vibrate(0)}catch(e){};return}
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext;ringCtx=new AC();
+    var beep=function(f,t,d){var o=ringCtx.createOscillator(),g=ringCtx.createGain();o.type="sine";o.frequency.value=f;g.gain.value=0.0001;o.connect(g);g.connect(ringCtx.destination);var n=ringCtx.currentTime+t;g.gain.exponentialRampToValueAtTime(0.25,n+0.03);g.gain.exponentialRampToValueAtTime(0.0001,n+d);o.start(n);o.stop(n+d+0.05)};
+    var ring=function(){beep(880,0,0.35);beep(660,0.4,0.35);beep(880,1.0,0.35);beep(660,1.4,0.35);try{navigator.vibrate&&navigator.vibrate([400,200,400])}catch(e){}};
+    ring();ringBeat=setInterval(ring,3000);
+  }catch(e){}
+}
+function stopRinging(){ringing=false;clearTimeout(ringTimer);ringTone(false);$("#ringOv").hidden=true}
+function incomingCall(why){
+  if(ringing||callActive||busy)return;
+  ringing=true;ringsToday++;
+  $("#ringTxt").textContent=why||"Jenny is calling you...";
+  $("#ringOv").hidden=false;ringTone(true);
+  ringTimer=setTimeout(function(){
+    if(!ringing)return;stopRinging();touchAct();
+    turn("You called him but he did not pick up (missed call). Text-style message, then speak it: pout playfully like a real girlfriend, ask where he is and if he is busy. One or two sentences, fresh wording.","","nudge");
+  },28000);
+}
+$("#ringYes").onclick=function(){stopRinging();startCall()};
+$("#ringNo").onclick=function(){stopRinging();touchAct();turn("He declined your incoming call. React like a real girlfriend: a little hurt but cute and understanding, ask if he is busy or what is wrong. One or two sentences, fresh wording.","","nudge")};
+// "call me" in chat -> Jenny rings him
+var CALL_RE=/\b(call me|ring me|give me a call|phone me|call kar|call kr|call karo|call krdo|mujhe call|muje call)\b/i;
+var _send=send;
+send=function(text,src){
+  touchAct();
+  if(CALL_RE.test(text||"")&&!callActive&&!busy&&!ringing){
+    var t=text.trim();$("#input").value="";autosize();
+    mem.chat.push({r:"u",t:t});addRow("u",t);
+    addSys("Jenny tumhe call kar rahi hai...");
+    setTimeout(function(){incomingCall("Jenny is calling you...")},1200);
+    return;
+  }
+  return _send(text,src);
+};
+// periodic tick: nudges when chat is quiet, check-ins during a call
+setInterval(function(){
+  var now=Date.now();
+  if(document.hidden||!started||ringing)return;
+  if(callActive){
+    if(busy||speaking)return;
+    var since=now-lastAct;
+    var limit=14000+callQuiet*6000;
+    if(since>limit&&!callMuted&&callQuiet<4&&now-lastNudgeAt>9000){
+      callQuiet++;lastNudgeAt=now;
+      turn("On this voice call he has been silent for "+Math.round(since/1000)+" seconds (silence number "+callQuiet+" in a row). Do not let it stay awkward and do not sound like a bot: like a real girlfriend, check on him ('Hello? You there? Did you fall asleep on me?'), tease lightly, or ask a fresh curious question about his day. One or two short sentences, different wording than before.","","nudge");
+    }
+    return;
+  }
+  if(busy||speaking||listening||settings.proact===false)return;
+  var idle=now-lastAct;
+  if(now-nudgeWinStart>3600000){nudgeWinStart=now;nudgeCount=0}
+  if(nudgeCount>=4)return;
+  if(idle>150000&&now-lastNudgeAt>150000){
+    nudgeCount++;lastNudgeAt=now;lastAct=now-60000;
+    if(nudgeCount===2||nudgeCount===4){incomingCall("Jenny is calling you...");return}
+    turn("He has been quiet in this chat for a few minutes. Message him first like a real girlfriend who misses him or is a bit bored: ask where he disappeared, whether he is busy, or start a fun topic with a curious question. Do not sound like a bot, do not mention 'inactivity'. One or two sentences, fresh wording.","","nudge");
+  }
+},5000);
+
 $("#btnCall").onclick=startCall;
 $("#startCall").onclick=startCall;
 $("#cbEnd").onclick=endCall;
