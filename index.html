@@ -511,7 +511,7 @@ async function turn(event,userText,src){
     applyResult(out,userText);
   }catch(e){
     typing.remove();
-    if(e.message==="no_brain")addSys("Jenny ka dimaag connect nahi hai. Settings mein API key daalo (PC version), ya artifact mein permission allow karo.");
+    if(e.message==="no_brain")addSys("Jenny ka dimaag abhi connect nahi hai. Upar Settings kholo aur apni Anthropic API key (sk-ant-...) ek baar paste karke Save karo.");
     else if(e&&e.code==="not_granted")addSys("Jenny ko Claude use karne ki permission chahiye. Page dobara kholkar Allow dabao.");
     else if(e&&e.code==="rate_limited")addSys("Thoda ruko, bahut jaldi-jaldi ho gaya. Kuch second baad phir bolo.");
     else addSys("Kuch gadbad ho gayi: "+(e&&e.message?e.message:"unknown")+". Phir koshish karo.");
