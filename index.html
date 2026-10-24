@@ -229,6 +229,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
     <label class="check"><input type="checkbox" id="sAuto"> Jenny bolke chup ho to mic apne aap on ho</label>
     <label class="check"><input type="checkbox" id="sSpeak"> Jenny ki awaaz on</label>
     <label class="check"><input type="checkbox" id="sProact"> Jenny khud message/call kare (app khuli ho tab)</label>
+    <label class="check"><input type="checkbox" id="sEar"> Call kaan par lagakar (earpiece mode, speaker nahi)</label>
     <label class="check"><input type="checkbox" id="sLive"> Real voice call (Gemini Live, insaan jaisi awaaz)</label>
     <div class="field"><label for="sLiveVoice">Call mein Jenny ki awaaz</label><select id="sLiveVoice"><option value="Leda">Leda (cute, youthful)</option><option value="Zephyr">Zephyr (bright, chirpy)</option><option value="Aoede">Aoede (breezy)</option><option value="Achernar">Achernar (soft, sweet)</option><option value="Sulafat">Sulafat (warm)</option></select></div>
     <div id="keyBox" hidden>
@@ -805,13 +806,13 @@ function fillVoiceSelect(){
 function openSettings(){
   $("#sName").value=settings.name||mem.name||"";$("#sLevel").value=settings.level;
   $("#sRate").value=settings.rate;$("#rateV").textContent=Number(settings.rate).toFixed(2);
-  $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;$("#sProact").checked=settings.proact!==false;$("#sLive").checked=settings.live!==false;$("#sLiveVoice").value=settings.liveVoice||"Leda";
+  $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;$("#sProact").checked=settings.proact!==false;$("#sLive").checked=settings.live!==false;$("#sEar").checked=settings.earpiece!==false;$("#sLiveVoice").value=settings.liveVoice||"Leda";
   $("#keyBox").hidden=!!sampleFn;$("#sKey").value=settings.key||"";$("#sModel").value=settings.model||"";
   fillVoiceSelect();$("#setOv").hidden=false;
 }
 function closeSettings(){
   settings.name=$("#sName").value.trim();settings.level=$("#sLevel").value;settings.voice=$("#sVoice").value;
-  settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;settings.proact=$("#sProact").checked;settings.live=$("#sLive").checked;settings.liveVoice=$("#sLiveVoice").value;
+  settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;settings.proact=$("#sProact").checked;settings.live=$("#sLive").checked;settings.earpiece=$("#sEar").checked;settings.liveVoice=$("#sLiveVoice").value;
   if(!sampleFn){settings.key=$("#sKey").value.trim();settings.model=$("#sModel").value.trim()}
   if(settings.name)mem.name=settings.name;
   lsSave(LS_SET,settings);save();$("#setOv").hidden=true;
@@ -971,7 +972,7 @@ setInterval(function(){
 
 
 /* ---------- LIVE VOICE CALL (Gemini Live: real-time voice, interruptions, emotion) ---------- */
-var liveOn=false, liveWS=null, liveReady=false, liveMuted=false, liveStream=null, liveCap=null, liveProc=null, livePlay=null, liveNext=0, liveSrcs=[], liveStart=0, liveTick=null, liveJ="", liveY="", liveLog=[], liveEnded=false, liveSpeakT=null, liveOld={};
+var liveOut=null, livePC=null, liveAudioEl=null, liveOn=false, liveWS=null, liveReady=false, liveMuted=false, liveStream=null, liveCap=null, liveProc=null, livePlay=null, liveNext=0, liveSrcs=[], liveStart=0, liveTick=null, liveJ="", liveY="", liveLog=[], liveEnded=false, liveSpeakT=null, liveOld={};
 function geminiKeyOf(){return (settings.key||"").split(/[\s,;]+/).filter(function(x){return /^(AIza|AQ\.)/.test(x)})[0]||""}
 function liveAvailable(){return settings.live!==false&&!!geminiKeyOf()&&!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)&&typeof WebSocket!=="undefined"&&!sampleFn}
 async function liveModelName(k){
@@ -1004,12 +1005,30 @@ function liveSystem(){
 ].join("\n");
 }
 function b64ToBuf(b64){var s=atob(b64),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u.buffer}
+async function liveRoute(){
+  liveOut=livePlay.destination;
+  if(settings.earpiece===false||!window.RTCPeerConnection||!livePlay.createMediaStreamDestination)return;
+  try{
+    var dest=livePlay.createMediaStreamDestination();
+    var a=new RTCPeerConnection(),b=new RTCPeerConnection();
+    a.onicecandidate=function(e){if(e.candidate)b.addIceCandidate(e.candidate).catch(function(){})};
+    b.onicecandidate=function(e){if(e.candidate)a.addIceCandidate(e.candidate).catch(function(){})};
+    var el_=document.createElement("audio");el_.autoplay=true;el_.setAttribute("playsinline","");el_.style.display="none";document.body.appendChild(el_);
+    var got=new Promise(function(res){b.ontrack=function(ev){el_.srcObject=ev.streams[0];var p=el_.play();if(p&&p.catch)p.catch(function(){});res(true)};setTimeout(function(){res(false)},2500)});
+    dest.stream.getTracks().forEach(function(t){a.addTrack(t,dest.stream)});
+    var off=await a.createOffer();await a.setLocalDescription(off);await b.setRemoteDescription(off);
+    var ans=await b.createAnswer();await b.setLocalDescription(ans);await a.setRemoteDescription(ans);
+    var ok=await got;
+    if(ok){liveOut=dest;livePC=[a,b];liveAudioEl=el_}
+    else{try{a.close();b.close()}catch(e){}el_.remove()}
+  }catch(e){liveOut=livePlay.destination}
+}
 function livePlayChunk(b64){
   if(!livePlay)return;
   var i16=new Int16Array(b64ToBuf(b64)),f=new Float32Array(i16.length);
   for(var i=0;i<i16.length;i++)f[i]=i16[i]/32768;
   var buf=livePlay.createBuffer(1,f.length,24000);buf.copyToChannel(f,0);
-  var src=livePlay.createBufferSource();src.buffer=buf;src.connect(livePlay.destination);
+  var src=livePlay.createBufferSource();src.buffer=buf;src.connect(liveOut||livePlay.destination);
   var t=Math.max(livePlay.currentTime+0.02,liveNext);src.start(t);liveNext=t+buf.duration;
   liveSrcs.push(src);src.onended=function(){var k=liveSrcs.indexOf(src);if(k>=0)liveSrcs.splice(k,1)};
   av("speaking",true);clearTimeout(liveSpeakT);liveSpeakT=setTimeout(function(){av("speaking",false)},Math.max(300,(liveNext-livePlay.currentTime)*1000+250));
@@ -1030,6 +1049,7 @@ function liveCleanup(){
   try{liveStream&&liveStream.getTracks().forEach(function(t){t.stop()})}catch(e){}
   try{liveCap&&liveCap.close()}catch(e){}
   try{livePlay&&livePlay.close()}catch(e){}
+  try{livePC&&livePC.forEach(function(p){p.close()})}catch(e){}livePC=null;try{liveAudioEl&&(liveAudioEl.srcObject=null,liveAudioEl.remove())}catch(e){}liveAudioEl=null;liveOut=null;
   try{liveWS&&liveWS.close()}catch(e){}
   liveProc=liveStream=liveCap=livePlay=liveWS=null;liveReady=false;liveSrcs=[];liveNext=0;
   try{wakeLock&&wakeLock.release()}catch(e){};wakeLock=null;
@@ -1074,6 +1094,7 @@ async function startLive(simple){
     liveStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}});
     var AC=window.AudioContext||window.webkitAudioContext;
     livePlay=new AC({sampleRate:24000});try{await livePlay.resume()}catch(e){}
+    await liveRoute();
     liveCap=new AC({sampleRate:16000});try{await liveCap.resume()}catch(e){}
     var ws=new WebSocket("wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key="+encodeURIComponent(k));
     liveWS=ws;
