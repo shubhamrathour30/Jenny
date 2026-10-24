@@ -210,6 +210,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
       <select id="sLevel"><option value="auto">Auto (Jenny decide karegi)</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></div>
     <div class="field"><label for="sVoice">Jenny ki awaaz (US English)</label><select id="sVoice"></select></div>
     <button class="ghost" id="sTest" type="button" style="margin-top:0">Test voice (Jenny bolke dikhao)</button>
+    <button class="ghost" id="sKeyTest" type="button" style="margin-top:6px">Test AI key (dimaag check)</button>
     <p id="voiceInfo" style="font-size:12px"></p>
     <div class="field"><label for="sRate">Bolne ki speed: <span id="rateV">1.0</span></label><input id="sRate" type="range" min="0.6" max="1.2" step="0.05"></div>
     <label class="check"><input type="checkbox" id="sHinglish"> Hinglish tips dikhao (sudhaar ki wajah)</label>
@@ -483,12 +484,23 @@ async function callOne(k){
     var m=settings.model||"", res, j;
     if(/^(AIza|AQ\.)/.test(k)){
       if(!m||/^claude|^llama/i.test(m))m="gemini-2.5-flash";
-      res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(m)+":generateContent?key="+encodeURIComponent(k),{method:"POST",headers:{"content-type":"application/json"},
-        body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:900,temperature:0.9,responseMimeType:"application/json"}})});
-      j=await res.json();
-      if(!res.ok)throw new Error((j.error&&j.error.message)||"API error "+res.status);
-      var cand=j.candidates&&j.candidates[0];
-      return ((cand&&cand.content&&cand.content.parts)||[]).map(function(p){return p.text||""}).join("");
+      var gbody=JSON.stringify({contents:[{role:"user",parts:[{text:String(prompt)}]}],generationConfig:{maxOutputTokens:900,temperature:0.9,responseMimeType:"application/json"}});
+      var urls=["https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(m)+":generateContent",
+                "https://aiplatform.googleapis.com/v1/publishers/google/models/"+encodeURIComponent(m)+":generateContent"];
+      if(/^AQ\./.test(k))urls.reverse();
+      var gerr=null;
+      for(var ui=0;ui<urls.length;ui++){
+        try{
+          res=await fetch(urls[ui],{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":k},body:gbody});
+          j=await res.json();
+          if(!res.ok){gerr=new Error((j.error&&j.error.message)||"API error "+res.status);continue}
+          var cand=j.candidates&&j.candidates[0];
+          var gt=((cand&&cand.content&&cand.content.parts)||[]).map(function(p){return p.text||""}).join("");
+          if(gt)return gt;
+          gerr=new Error("Gemini ne khali jawab diya"+(cand&&cand.finishReason?" ("+cand.finishReason+")":""));
+        }catch(e){gerr=e}
+      }
+      throw gerr;
     }
     if(/^gsk_/.test(k)){
       if(!m||/^claude|^gemini/i.test(m))m="llama-3.3-70b-versatile";
@@ -648,7 +660,7 @@ function refreshStatus(){
   $("#status").textContent=s;
 }
 var toastT=null;
-function toast(t){var old=document.querySelector(".toast");if(old)old.remove();var d=el("div","toast",t);document.body.appendChild(d);clearTimeout(toastT);toastT=setTimeout(function(){d.remove()},4200)}
+function toast(t){var old=document.querySelector(".toast");if(old)old.remove();var d=el("div","toast",t);document.body.appendChild(d);clearTimeout(toastT);toastT=setTimeout(function(){d.remove()},t.length>70?9000:4200)}
 function autosize(){var i=$("#input");i.style.height="auto";i.style.height=Math.min(110,i.scrollHeight)+"px"}
 
 /* ---------- modes ---------- */
@@ -786,6 +798,18 @@ $("#callIn").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preven
   $("#startNote").textContent=n.join(" ");
 })();
 })();
+
+document.getElementById("sKeyTest").onclick=async function(){
+  var kv=document.getElementById("sKey").value.trim();
+  if(kv)settings.key=kv;
+  toast("Key check ho rahi hai...");
+  try{
+    var r=await callBrain('Reply with only this JSON: {"reply":"Hi, I am working!"}');
+    toast("Key chal rahi hai: "+String(r).slice(0,60));
+  }catch(e){
+    toast(e.message==="no_brain"?"Pehle key paste karo.":"Key error: "+(e.message||e));
+  }
+};
 
 /* ---------- install + auto-update (phone app) ---------- */
 (function(){
