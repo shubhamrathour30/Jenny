@@ -230,7 +230,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
     <label class="check"><input type="checkbox" id="sSpeak"> Jenny ki awaaz on</label>
     <label class="check"><input type="checkbox" id="sProact"> Jenny khud message/call kare (app khuli ho tab)</label>
     <div id="keyBox" hidden>
-      <div class="field"><label for="sKey">AI keys (ek ya zyada, comma se alag): Gemini AIza... ya AQ.... / Groq gsk_... / Anthropic sk-ant-...</label><input id="sKey" type="password" placeholder="AIza... / gsk_... / sk-ant-..." autocomplete="off"></div>
+      <div class="field"><label for="sKey">AI keys (ek ya zyada, comma se alag): Gemini AIza.../AQ.... / OpenRouter sk-or-... / Cerebras csk-... / Groq gsk_... / Anthropic sk-ant-...</label><input id="sKey" type="password" placeholder="AIza... / gsk_... / sk-ant-..." autocomplete="off"></div>
       <div class="field"><label for="sModel">Model (khali chhod do, auto chunega)</label><input id="sModel" placeholder="auto"></div>
     </div>
     <button class="big" id="setDone">Done</button>
@@ -565,11 +565,38 @@ async function callGemini(k,m,prompt){
   var uniq=[];errs.forEach(function(x){if(uniq.indexOf(x)<0)uniq.push(x)});
   throw new Error(uniq.slice(0,2).join(" | ")||"Gemini se jawab nahi mila");
 }
+
+async function callOpenAI(base,k,models,prompt,extraHdr){
+  var errs=[];
+  for(var i=0;i<models.length;i++){
+    try{
+      var h={"content-type":"application/json","authorization":"Bearer "+k};
+      if(extraHdr)for(var x in extraHdr)h[x]=extraHdr[x];
+      var res=await tfetch(base+"/chat/completions",{method:"POST",headers:h,body:JSON.stringify({model:models[i],max_tokens:900,temperature:0.9,messages:[{role:"user",content:String(prompt)}]})},25000);
+      var j=await res.json();
+      if(!res.ok){var msg=(j.error&&(j.error.message||j.error))||("API error "+res.status);errs.push(models[i]+": "+msg);if(res.status===429)continue;if(res.status===401||res.status===403)throw new Error(String(msg));continue}
+      var t=j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content;
+      if(t)return t;errs.push(models[i]+": khali jawab");
+    }catch(e){errs.push(models[i]+": "+(e&&e.name==="AbortError"?"jawab nahi aaya":e.message||e));if(/401|403|key|auth/i.test(e.message||""))throw e}
+  }
+  if(errs.some(function(x){return /429|rate|quota|limit/i.test(x)}))throw new Error("QUOTA");
+  throw new Error(errs.slice(0,2).join(" | "));
+}
+async function callCerebras(k,prompt){
+  var list=[];
+  try{var r=await tfetch("https://api.cerebras.ai/v1/models",{headers:{authorization:"Bearer "+k}},10000);var j=await r.json();list=(j.data||[]).map(function(x){return x.id})}catch(e){}
+  var pref=["gpt-oss-120b","llama-3.3-70b","qwen-3-235b-a22b-instruct-2507","llama3.1-8b"];
+  var m=pref.filter(function(x){return !list.length||list.indexOf(x)>=0});
+  if(!m.length)m=list.slice(0,3);
+  return callOpenAI("https://api.cerebras.ai/v1",k,m.length?m:["llama3.1-8b"],prompt);
+}
 async function callOne(k,prompt){
     var m=settings.model||"", res, j;
     if(/^(AIza|AQ\.)/.test(k)){
       return await callGemini(k,m,prompt);
     }
+    if(/^sk-or-/.test(k))return await callOpenAI("https://openrouter.ai/api/v1",k,["openrouter/free","meta-llama/llama-3.3-70b-instruct:free"],prompt,{"x-title":"Jenny"});
+    if(/^csk-/.test(k))return await callCerebras(k,prompt);
     if(/^gsk_/.test(k)){
       if(!m||/^claude|^gemini/i.test(m))m="llama-3.3-70b-versatile";
       res=await tfetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+k},
