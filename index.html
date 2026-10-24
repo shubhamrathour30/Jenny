@@ -211,6 +211,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
     <div class="field"><label for="sVoice">Jenny ki awaaz (US English)</label><select id="sVoice"></select></div>
     <button class="ghost" id="sTest" type="button" style="margin-top:0">Test voice (Jenny bolke dikhao)</button>
     <button class="ghost" id="sKeyTest" type="button" style="margin-top:6px">Test AI key (dimaag check)</button>
+    <div id="sKeyMsg" style="margin:8px 2px 0;font-size:14px;line-height:1.4;word-break:break-word;opacity:.9"></div>
     <p id="voiceInfo" style="font-size:12px"></p>
     <div class="field"><label for="sRate">Bolne ki speed: <span id="rateV">1.0</span></label><input id="sRate" type="range" min="0.6" max="1.2" step="0.05"></div>
     <label class="check"><input type="checkbox" id="sHinglish"> Hinglish tips dikhao (sudhaar ki wajah)</label>
@@ -774,6 +775,21 @@ function callSendTyped(){
   i.value="";$("#capY").textContent="You: "+t;
   if(busy)return;send(t,"typed");
 }
+document.getElementById("sKeyTest").onclick=async function(){
+  var box=document.getElementById("sKeyMsg");
+  var kv=document.getElementById("sKey").value.trim();
+  var mv=document.getElementById("sModel").value.trim();
+  if(kv)settings.key=kv;
+  settings.model=mv;
+  box.style.color="";box.textContent="Key check ho rahi hai... (5-10 second)";
+  try{
+    var r=await callBrain('Reply with only this JSON: {"reply":"Hi, I am working!"}');
+    box.style.color="#6ee7a8";box.textContent="Key chal rahi hai! Jawab aaya: "+String(r).slice(0,80);
+  }catch(e){
+    box.style.color="#ff9aa8";
+    box.textContent=e.message==="no_brain"?"Pehle upar key paste karo.":"Key error: "+(e.message||e);
+  }
+};
 $("#btnCall").onclick=startCall;
 $("#startCall").onclick=startCall;
 $("#cbEnd").onclick=endCall;
@@ -798,18 +814,6 @@ $("#callIn").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preven
   $("#startNote").textContent=n.join(" ");
 })();
 })();
-
-document.getElementById("sKeyTest").onclick=async function(){
-  var kv=document.getElementById("sKey").value.trim();
-  if(kv)settings.key=kv;
-  toast("Key check ho rahi hai...");
-  try{
-    var r=await callBrain('Reply with only this JSON: {"reply":"Hi, I am working!"}');
-    toast("Key chal rahi hai: "+String(r).slice(0,60));
-  }catch(e){
-    toast(e.message==="no_brain"?"Pehle key paste karo.":"Key error: "+(e.message||e));
-  }
-};
 
 /* ---------- install + auto-update (phone app) ---------- */
 (function(){
