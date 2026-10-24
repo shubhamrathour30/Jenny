@@ -9,7 +9,7 @@ permissions:
   contents: write
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,9 +19,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
       - name: Build APK
-        run: bash apk/build.sh
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null 2>&1 || true
+          bash apk/build.sh
       - name: Publish APK to a release
         env:
           GH_TOKEN: ${{ github.token }}
