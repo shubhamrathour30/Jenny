@@ -7,5 +7,8 @@
     "cleartext": false,
     "androidScheme": "https"
   },
-  "android": { "allowMixedContent": false }
+  "android": {
+    "allowMixedContent": false
+  },
+  "backgroundColor": "#150f1d"
 }

@@ -82,7 +82,13 @@ public class AudioRoute extends Plugin {
 ''')
 open(os.path.join(jdir, "MainActivity.java"), "w").write('''package com.shubham.jenny;
 
+import android.graphics.Color;
 import android.os.Bundle;
+import android.view.View;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -90,6 +96,19 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(AudioRoute.class);
         super.onCreate(savedInstanceState);
+        try {
+            WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+            getWindow().setStatusBarColor(Color.parseColor("#150f1d"));
+            getWindow().setNavigationBarColor(Color.parseColor("#150f1d"));
+            View content = findViewById(android.R.id.content);
+            content.setBackgroundColor(Color.parseColor("#150f1d"));
+            ViewCompat.setOnApplyWindowInsetsListener(content, (v, insets) -> {
+                Insets b = insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.ime());
+                v.setPadding(b.left, b.top, b.right, b.bottom);
+                return WindowInsetsCompat.CONSUMED;
+            });
+            ViewCompat.requestApplyInsets(content);
+        } catch (Exception e) { }
     }
 }
 ''')
@@ -111,4 +130,18 @@ for k, px in sizes.items():
         if os.path.exists(p): os.remove(p)
     for f in os.listdir(d):
         if f.endswith(".webp"): os.remove(os.path.join(d, f))
+gp = os.path.join("android", "app", "build.gradle")
+g = open(gp).read()
+if "signingConfigs" not in g:
+    sc = """    signingConfigs {
+        debug {
+            storeFile file("${rootDir}/../jenny.keystore")
+            storePassword "jennyapp"
+            keyAlias "jenny"
+            keyPassword "jennyapp"
+        }
+    }
+    buildTypes {"""
+    g = g.replace("    buildTypes {", sc, 1)
+    open(gp, "w").write(g)
 print("patched")
