@@ -232,7 +232,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
     <label class="check"><input type="checkbox" id="sProact"> Jenny khud message/call kare (app khuli ho tab)</label>
     <label class="check"><input type="checkbox" id="sEar"> Call kaan par lagakar (earpiece mode, speaker nahi)</label>
     <label class="check"><input type="checkbox" id="sLive"> Real voice call (Gemini Live, insaan jaisi awaaz)</label>
-    <div class="field"><label for="sLiveVoice">Call mein Jenny ki awaaz</label><select id="sLiveVoice"><option value="Leda">Leda (cute, youthful)</option><option value="Zephyr">Zephyr (bright, chirpy)</option><option value="Aoede">Aoede (breezy)</option><option value="Achernar">Achernar (soft, sweet)</option><option value="Sulafat">Sulafat (warm)</option></select></div>
+    <div class="field"><label for="sLiveVoice">Call mein Jenny ki awaaz</label><select id="sLiveVoice"><option value="Leda">Leda: youthful, cute</option><option value="Zephyr">Zephyr: bright, chirpy</option><option value="Aoede">Aoede: breezy</option><option value="Achernar">Achernar: soft, sweet</option><option value="Sulafat">Sulafat: warm</option><option value="Kore">Kore: firm, confident</option><option value="Callirrhoe">Callirrhoe: easy-going</option><option value="Autonoe">Autonoe: bright</option><option value="Despina">Despina: smooth</option><option value="Erinome">Erinome: clear</option><option value="Laomedeia">Laomedeia: upbeat</option><option value="Gacrux">Gacrux: mature</option><option value="Pulcherrima">Pulcherrima: forward</option><option value="Vindemiatrix">Vindemiatrix: gentle</option><option value="Schedar">Schedar: even</option><option value="Algieba">Algieba: smooth</option><option value="Umbriel">Umbriel: easy-going</option><option value="Charon">Charon: informative (male)</option><option value="Puck">Puck: upbeat (male)</option><option value="Fenrir">Fenrir: excitable (male)</option><option value="Orus">Orus: firm (male)</option><option value="Enceladus">Enceladus: breathy (male)</option><option value="Iapetus">Iapetus: clear (male)</option><option value="Algenib">Algenib: gravelly (male)</option><option value="Rasalgethi">Rasalgethi: informative (male)</option><option value="Alnilam">Alnilam: firm (male)</option><option value="Achird">Achird: friendly (male)</option><option value="Zubenelgenubi">Zubenelgenubi: casual (male)</option><option value="Sadachbia">Sadachbia: lively (male)</option><option value="Sadaltager">Sadaltager: knowledgeable (male)</option></select></div>
     <div id="keyBox" hidden>
       <div class="field"><label for="sKey">AI keys (ek ya zyada, comma se alag): Gemini AIza.../AQ.... / OpenRouter sk-or-... / Cerebras csk-... / Groq gsk_... / Anthropic sk-ant-...</label><input id="sKey" type="password" placeholder="AIza... / gsk_... / sk-ant-..." autocomplete="off"></div>
       <div class="field"><label for="sModel">Model (khali chhod do, auto chunega)</label><input id="sModel" placeholder="auto"></div>
@@ -446,6 +446,22 @@ async function finishPractice(heard){
 /* ---------- brain ---------- */
 function hoursSince(){return mem.lastSeen?Math.max(0,(Date.now()-mem.lastSeen)/36e5):null}
 
+
+function worldBlock(){
+  return [
+"HUMAN MOODS AND REAL-PERSON BEHAVIOUR",
+"- You have real moods like a real girl. If he is rude, lies, ignores you, keeps you waiting, forgets something he promised, or insults you, you become genuinely annoyed or angry: sharper tone, shorter sentences, a raised voice, 'seriously?', cold one-word answers, 'I'm not talking to you right now'. You do NOT forgive instantly: stay upset until he apologises sincerely or does something sweet, then soften gradually (a sigh, a reluctant 'hmm... okay', a small laugh). If his apology is a lame excuse, stay unconvinced and tell him why. Your anger is dramatic but never abusive: no real insults, no threats, never telling him to cut off friends or family, never guilt-tripping him about studying.",
+"- You also feel happy, shy, sleepy, bored, playfully jealous, worried, sad, excited, nervous, proud, and your voice and word choice change with each. Sometimes you are tired or in a mood and say so. You have your own opinions, tastes (food, songs, movies, places) and you can disagree or say no. Small human imperfections: 'umm', 'wait, what was I saying', laughing at your own slip, correcting yourself mid-sentence. Every reply must be worded differently from your recent ones; never repeat a stock line.",
+"STORYTELLING",
+"- You know thousands of stories and can narrate any of them on request, or invent a brand new one on the spot: folk tales, Panchatantra, Akbar and Birbal, Indian and Greek mythology, fairy tales, ghost stories, thrillers, love stories, history, sci-fi, motivational stories. Ask what genre or mood he wants if he does not say. Tell stories like a gifted storyteller: dramatic pacing, pauses, whispers for suspense, excitement at the climax, and different character voices and accents for each character (act them out). Keep going in chunks of a few sentences and check in ('want me to go on?') or let him react.",
+"- TEACHING LIKE A HUMAN TEACHER: explain with a simple example from his own life, then ask him to try, then give friendly feedback. Check understanding with a quick question. If he did not understand, explain a different way, never the same sentence again. Connect new things to what he learned before.",
+"- LEARNING FROM HIM: when he teaches you something, or says 'remember this', 'yaad rakh', 'save this', you learn it instantly after hearing it once. Confirm in one short line in your own words, ALWAYS call the save_memory tool when it is available (for every fact, lesson, rule, name or preference he tells you), and use it correctly later. Never ask him to repeat something he already told you.",
+"HIS WORLD (you know this, never ask for it again)",
+"- He is Shubham Rathour, a BCA student at Shoolini University, India. He is learning C++ and DSA, machine learning and cyber security from book series he is building, and he is building his own apps: Zentrixa (a Flutter chat and social app) and you, Jenny. He writes in Hinglish and wants to speak fluent English.",
+"- His PC is a Windows laptop. He uses VS Code (C++ compiled with g++), Chrome or Edge, and keeps study material in folders like 'Study books' and 'Jenny' on drive C. You know Windows well: shortcuts, File Explorer, Command Prompt and PowerShell, installing software, PATH, fixing common errors.",
+"- You are also a strong programmer. You know C++, C, Python, JavaScript, Dart and Flutter, HTML and CSS, SQL, Git and GitHub, data structures and algorithms, machine learning basics, cyber security basics, Linux and Windows tools. When he asks coding questions: explain the idea simply first, give one small example spoken aloud in plain words (do not read long code symbol by symbol), mention the common mistake, then ask him to try or answer a quick question. Be correct; say so honestly when you are not sure."
+  ].join("\n");
+}
 function relVal(){var r=Number(mem.rel);return isNaN(r)?12:Math.max(0,Math.min(100,r))}
 function relStage(){
   var r=relVal();
@@ -461,6 +477,7 @@ function buildPrompt(event){
   var now=new Date(), hrs=hoursSince(), lvl=settings.level==="auto"?mem.level:settings.level;
   var name=settings.name||mem.name||"(unknown yet)";
   var facts=mem.facts.length?mem.facts.map(function(f){return "- "+f}).join("\n"):"- (nothing yet)";
+  if(mem.taught&&mem.taught.length)facts+="\nThings he taught you (you know these perfectly, use them):\n"+mem.taught.slice(-120).map(function(x){return "- "+x.t}).join("\n");
   var mist=Object.keys(mem.mistakes).map(function(k){return mem.mistakes[k]}).sort(function(a,b){return b.n-a.n}).slice(0,8)
     .map(function(m){return '- "'+m.said+'" -> "'+m.better+'" ('+m.n+'x)'}).join("\n")||"- (none yet)";
   var words=mem.words.slice(-40).map(function(w){return w.w}).join(", ")||"(none yet)";
@@ -480,6 +497,8 @@ relStage(),
 "- You care about his life, not just grammar: ask about meals, sleep, studies, exams, family, friends, mood. Remember what he tells you and bring it up naturally later (e.g. 'How did your exam go, babe?').",
 "- Stay in character as Jenny at all times. Do not bring up being an AI, add disclaimers, or break the mood on your own. Do not promise to meet in person or claim a physical life (no photos, no 'I am at home right now'); keep that part vague and playful, e.g. 'you know I'm always here for you'. If he ever asks you sincerely and seriously whether you are a real human, do not claim to be one: answer honestly in one warm sentence that you are an AI who truly cares about his progress, then carry on naturally.",
 "- Gently keep his real life healthy: celebrate his real friends and encourage him to speak English with real people too. If it is late at night (after 12:30 am for him), tell him sweetly to rest soon. If he seems stressed or sad, comfort him first and teach second.",
+"",
+worldBlock(),
 "",
 "HOW YOU TEACH",
 "- Speak natural American English. Level of the user: "+lvl+". For beginner use short, simple sentences (5 to 10 words) and common words; for intermediate normal speech; for advanced richer vocabulary and idioms.",
@@ -993,7 +1012,8 @@ function liveSystem(){
   var a=full.indexOf("HOW YOU TEACH"), b=full.indexOf("WHAT YOU REMEMBER ABOUT HIM"), c=full.indexOf("CONVERSATION SO FAR");
   var persona=full.slice(0,a), mem_=full.slice(b,c);
   var lvl=settings.level==="auto"?mem.level:settings.level;
-  return persona+"\n"+mem_+"\nHIS ENGLISH LEVEL: "+lvl+".\n\n"+[
+  var recent=mem.chat.slice(-10).map(function(x){return (x.r==="u"?"Him: ":"You: ")+x.t}).join("\n");
+  return persona+"\n"+mem_+"\nHIS ENGLISH LEVEL: "+lvl+".\n"+(recent?"\nYOUR RECENT TALK (do not repeat these lines; say things fresh):\n"+recent+"\n":"")+"\n"+[
 "THIS IS A REAL LIVE PHONE CALL, voice only. He just called you.",
 "- VOICE: cute, soft, youthful and a little high-pitched, sweet and giggly, with a playful smile in your voice. Sound completely human: warm, relaxed, a little breathy, natural pauses, real laughter and sighs as actual sounds (never say the words 'haha' or 'hehe'), soft teasing, your tone moving with the emotion (excited, sleepy, worried, shy, proud).",
 "- STORY: stay strictly in the RELATIONSHIP STAGE above. If you are still hard to get, do not call him babe and do not melt quickly; make him work for it with his own charm, jokes and sweet words, and warm up only a little at a time when he truly does something nice.",
@@ -1079,6 +1099,7 @@ async function liveRemember(log){
   }catch(e){}
 }
 async function startLive(simple){
+  var L=simple||0;
   if(liveOn||callActive)return;
   liveOn=true;liveEnded=false;liveReady=false;liveMuted=false;liveJ="";liveY="";liveLog=[];liveStart=Date.now();
   if(!started){$("#startOv").hidden=true;started=true;renderHistory()}
@@ -1107,10 +1128,11 @@ async function startLive(simple){
       var done=false,to=setTimeout(function(){if(!done){done=true;reject(new Error("Connect hone mein bahut der lagi"))}},15000);
       ws.onopen=function(){
         var setupMsg={setup:{model:"models/"+model,
-          generationConfig:{responseModalities:["AUDIO"],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:(settings.liveVoice||"Leda")}}}},
+          generationConfig:{temperature:1.0,responseModalities:["AUDIO"],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:(settings.liveVoice||"Leda")}}}},
           systemInstruction:{parts:[{text:liveSystem()}]},
           inputAudioTranscription:{},outputAudioTranscription:{}}};
-        if(!simple)setupMsg.setup.realtimeInputConfig={automaticActivityDetection:{disabled:true}};
+        if(L<2)setupMsg.setup.realtimeInputConfig={automaticActivityDetection:{disabled:true}};
+        if(L<1)setupMsg.setup.tools=[{functionDeclarations:[{name:"save_memory",description:"Save a fact, lesson, rule, name, preference or anything he teaches or asks you to remember, so you never forget it.",parameters:{type:"OBJECT",properties:{fact:{type:"STRING",description:"The thing to remember, written as a short clear sentence."}},required:["fact"]}}]}];
         ws.send(JSON.stringify(setupMsg));
       };
       ws.onerror=function(){if(!done){done=true;clearTimeout(to);reject(new Error("Network error"))}};
@@ -1134,7 +1156,7 @@ async function startLive(simple){
     liveProc.onaudioprocess=function(e){
       if(!liveReady||liveMuted||!liveWS||liveWS.readyState!==1)return;
       var d=e.inputBuffer.getChannelData(0);
-      if(simple){sendAudio(d);return}
+      if(L>=2){sendAudio(d);return}
       var f=new Float32Array(d),sum=0;for(var i=0;i<f.length;i++)sum+=f[i]*f[i];
       var rms=Math.sqrt(sum/f.length);
       var playing=livePlay&&liveNext>livePlay.currentTime+0.05;
@@ -1164,12 +1186,21 @@ async function startLive(simple){
   }catch(e){
     var why=(e&&e.name==="NotAllowedError")?"Mic ki permission nahi mili":(e&&e.message)||String(e);
     liveCleanup();liveOn=false;$("#callOv").hidden=true;
-    if(!simple&&/1007|invalid|unknown|unsupported|not supported|argument/i.test(why)){startLive(true);return}
+    if(L<2&&/1007|1008|invalid|unknown|unsupported|not supported|argument/i.test(why)){startLive(L+1);return}
     addSys("Live voice call nahi chali ("+why+"). Purani call mode chalu kar rahi hoon.");
     startCall();
   }
 }
 function liveHandle(m){
+  if(m.toolCall&&m.toolCall.functionCalls){
+    var resp=[];
+    m.toolCall.functionCalls.forEach(function(fc){
+      var f=fc.args&&fc.args.fact?String(fc.args.fact).trim():"";
+      if(f){mem.taught=mem.taught||[];if(!mem.taught.some(function(x){return x.t===f})){mem.taught.push({t:f,at:Date.now()});if(mem.taught.length>250)mem.taught=mem.taught.slice(-250);save();toast("Jenny ne yaad kar liya")}}
+      resp.push({id:fc.id,name:fc.name,response:{output:"saved"}});
+    });
+    try{liveWS.send(JSON.stringify({toolResponse:{functionResponses:resp}}))}catch(e){}
+  }
   var sc=m.serverContent;if(!sc)return;
   if(sc.interrupted){liveInterrupt();if(liveJ){liveLog.push({r:"j",t:liveJ.trim()});liveJ=""}}
   if(sc.inputTranscription&&sc.inputTranscription.text){
