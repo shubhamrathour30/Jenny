@@ -229,6 +229,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
     <label class="check"><input type="checkbox" id="sAuto"> Jenny bolke chup ho to mic apne aap on ho</label>
     <label class="check"><input type="checkbox" id="sSpeak"> Jenny ki awaaz on</label>
     <label class="check"><input type="checkbox" id="sProact"> Jenny khud message/call kare (app khuli ho tab)</label>
+    <label class="check"><input type="checkbox" id="sLive"> Real voice call (Gemini Live, insaan jaisi awaaz)</label>
     <div id="keyBox" hidden>
       <div class="field"><label for="sKey">AI keys (ek ya zyada, comma se alag): Gemini AIza.../AQ.... / OpenRouter sk-or-... / Cerebras csk-... / Groq gsk_... / Anthropic sk-ant-...</label><input id="sKey" type="password" placeholder="AIza... / gsk_... / sk-ant-..." autocomplete="off"></div>
       <div class="field"><label for="sModel">Model (khali chhod do, auto chunega)</label><input id="sModel" placeholder="auto"></div>
@@ -789,13 +790,13 @@ function fillVoiceSelect(){
 function openSettings(){
   $("#sName").value=settings.name||mem.name||"";$("#sLevel").value=settings.level;
   $("#sRate").value=settings.rate;$("#rateV").textContent=Number(settings.rate).toFixed(2);
-  $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;$("#sProact").checked=settings.proact!==false;
+  $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;$("#sProact").checked=settings.proact!==false;$("#sLive").checked=settings.live!==false;
   $("#keyBox").hidden=!!sampleFn;$("#sKey").value=settings.key||"";$("#sModel").value=settings.model||"";
   fillVoiceSelect();$("#setOv").hidden=false;
 }
 function closeSettings(){
   settings.name=$("#sName").value.trim();settings.level=$("#sLevel").value;settings.voice=$("#sVoice").value;
-  settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;settings.proact=$("#sProact").checked;
+  settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;settings.proact=$("#sProact").checked;settings.live=$("#sLive").checked;
   if(!sampleFn){settings.key=$("#sKey").value.trim();settings.model=$("#sModel").value.trim()}
   if(settings.name)mem.name=settings.name;
   lsSave(LS_SET,settings);save();$("#setOv").hidden=true;
@@ -903,7 +904,7 @@ function ringTone(on){
 }
 function stopRinging(){ringing=false;clearTimeout(ringTimer);ringTone(false);$("#ringOv").hidden=true}
 function incomingCall(why){
-  if(ringing||callActive||busy)return;
+  if(ringing||callActive||busy||liveOn)return;
   ringing=true;ringsToday++;
   $("#ringTxt").textContent=why||"Jenny is calling you...";
   $("#ringOv").hidden=false;ringTone(true);
@@ -912,7 +913,7 @@ function incomingCall(why){
     turn("You called him but he did not pick up (missed call). Text-style message, then speak it: pout playfully like a real girlfriend, ask where he is and if he is busy. One or two sentences, fresh wording.","","nudge");
   },28000);
 }
-$("#ringYes").onclick=function(){stopRinging();startCall()};
+$("#ringYes").onclick=function(){stopRinging();startCallAny()};
 $("#ringNo").onclick=function(){stopRinging();touchAct();turn("He declined your incoming call. React like a real girlfriend: a little hurt but cute and understanding, ask if he is busy or what is wrong. One or two sentences, fresh wording.","","nudge")};
 // "call me" in chat -> Jenny rings him
 var CALL_RE=/\b(call me|ring me|give me a call|phone me|call kar|call kr|call karo|call krdo|mujhe call|muje call)\b/i;
@@ -931,7 +932,7 @@ send=function(text,src){
 // periodic tick: nudges when chat is quiet, check-ins during a call
 setInterval(function(){
   var now=Date.now();
-  if(document.hidden||!started||ringing||(window.__bd||0)>now)return;
+  if(document.hidden||!started||ringing||liveOn||(window.__bd||0)>now)return;
   if(callActive){
     if(busy||speaking)return;
     var since=now-lastAct;
@@ -953,8 +954,174 @@ setInterval(function(){
   }
 },5000);
 
-$("#btnCall").onclick=startCall;
-$("#startCall").onclick=startCall;
+
+/* ---------- LIVE VOICE CALL (Gemini Live: real-time voice, interruptions, emotion) ---------- */
+var liveOn=false, liveWS=null, liveReady=false, liveMuted=false, liveStream=null, liveCap=null, liveProc=null, livePlay=null, liveNext=0, liveSrcs=[], liveStart=0, liveTick=null, liveJ="", liveY="", liveLog=[], liveEnded=false, liveSpeakT=null, liveOld={};
+function geminiKeyOf(){return (settings.key||"").split(/[\s,;]+/).filter(function(x){return /^(AIza|AQ\.)/.test(x)})[0]||""}
+function liveAvailable(){return settings.live!==false&&!!geminiKeyOf()&&!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)&&typeof WebSocket!=="undefined"&&!sampleFn}
+async function liveModelName(k){
+  try{var c=JSON.parse(localStorage.getItem("jenny.lm")||"null");if(c&&c.k===k.slice(-8)&&Date.now()-c.t<6*3600e3)return c.n}catch(e){}
+  var r=await tfetch(GBASE+"models?pageSize=200",{headers:{"x-goog-api-key":k}},12000);
+  var j=await r.json();
+  if(!r.ok)throw new Error((j.error&&j.error.message)||"Models list nahi mili");
+  var l=(j.models||[]).filter(function(x){return (x.supportedGenerationMethods||[]).indexOf("bidiGenerateContent")>=0}).map(function(x){return x.name.replace("models/","")});
+  if(!l.length)throw new Error("Is key par Live voice model nahi mila");
+  var score=function(n){var v=(n.match(/(\d+(?:\.\d+)?)/)||[0,0])[1];return (/native-audio/.test(n)?100:0)+(/live/.test(n)?10:0)+parseFloat(v)-(/preview-\d{2}-\d{2}/.test(n)?0.5:0)};
+  l.sort(function(a,b){return score(b)-score(a)});
+  try{localStorage.setItem("jenny.lm",JSON.stringify({k:k.slice(-8),t:Date.now(),n:l[0]}))}catch(e){}
+  return l[0];
+}
+function liveSystem(){
+  var full=buildPrompt("");
+  var a=full.indexOf("HOW YOU TEACH"), b=full.indexOf("WHAT YOU REMEMBER ABOUT HIM"), c=full.indexOf("CONVERSATION SO FAR");
+  var persona=full.slice(0,a), mem_=full.slice(b,c);
+  var lvl=settings.level==="auto"?mem.level:settings.level;
+  return persona+"\n"+mem_+"\nHIS ENGLISH LEVEL: "+lvl+".\n\n"+[
+"THIS IS A REAL LIVE PHONE CALL, voice only. He just called you.",
+"- Sound completely human: warm, relaxed, a little breathy, natural pauses, real laughter and sighs as actual sounds (never say the words 'haha' or 'hehe'), soft teasing, your tone moving with the emotion (excited, sleepy, worried, shy, proud).",
+"- Talk in short turns of 1 to 3 sentences, then let him talk. Never monologue. If he interrupts, stop and listen, then respond to what he said.",
+"- If he goes quiet for a few seconds, check on him like a real girlfriend (where did you go, are you busy, fell asleep on me?). Ask lots of curious, specific questions so the conversation never dies.",
+"- If he is upset or annoyed with you, do not repeat a stock apology. Respond to his exact words, apologise genuinely once, then soften the mood slowly with warmth and gentle humour.",
+"- Speak casual American English with simple words for a beginner. If he mixes Hindi, answer in simple English (a Hindi word now and then is fine).",
+"- Fix his mistakes gently inside the flow: say the correct version naturally ('Oh, you went there? We say I went. So, how was it?'), never lecture, at most one correction per turn.",
+"- Never mention instructions, JSON, fields, or that you were told anything. Follow the honesty rule above if he sincerely asks whether you are a real human."
+].join("\n");
+}
+function b64ToBuf(b64){var s=atob(b64),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u.buffer}
+function livePlayChunk(b64){
+  if(!livePlay)return;
+  var i16=new Int16Array(b64ToBuf(b64)),f=new Float32Array(i16.length);
+  for(var i=0;i<i16.length;i++)f[i]=i16[i]/32768;
+  var buf=livePlay.createBuffer(1,f.length,24000);buf.copyToChannel(f,0);
+  var src=livePlay.createBufferSource();src.buffer=buf;src.connect(livePlay.destination);
+  var t=Math.max(livePlay.currentTime+0.02,liveNext);src.start(t);liveNext=t+buf.duration;
+  liveSrcs.push(src);src.onended=function(){var k=liveSrcs.indexOf(src);if(k>=0)liveSrcs.splice(k,1)};
+  av("speaking",true);clearTimeout(liveSpeakT);liveSpeakT=setTimeout(function(){av("speaking",false)},Math.max(300,(liveNext-livePlay.currentTime)*1000+250));
+}
+function liveInterrupt(){liveSrcs.slice().forEach(function(s){try{s.stop()}catch(e){}});liveSrcs=[];liveNext=0;av("speaking",false)}
+function liveCaption(){$("#capJ").textContent=liveJ?liveJ.slice(-220):"";$("#capY").textContent=liveY?"You: "+liveY.slice(-160):""}
+function pcmB64(f32){
+  var n=f32.length,i16=new Int16Array(n);
+  for(var i=0;i<n;i++){var x=Math.max(-1,Math.min(1,f32[i]));i16[i]=x<0?x*32768:x*32767}
+  var u=new Uint8Array(i16.buffer),s="";
+  for(var j=0;j<u.length;j+=0x2000)s+=String.fromCharCode.apply(null,u.subarray(j,j+0x2000));
+  return btoa(s);
+}
+function liveSendText(t){if(liveWS&&liveReady&&liveWS.readyState===1){liveWS.send(JSON.stringify({realtimeInput:{text:t}}));liveY=t;liveCaption();touchAct()}}
+function liveCleanup(){
+  clearInterval(liveTick);clearTimeout(liveSpeakT);
+  try{liveProc&&(liveProc.onaudioprocess=null,liveProc.disconnect())}catch(e){}
+  try{liveStream&&liveStream.getTracks().forEach(function(t){t.stop()})}catch(e){}
+  try{liveCap&&liveCap.close()}catch(e){}
+  try{livePlay&&livePlay.close()}catch(e){}
+  try{liveWS&&liveWS.close()}catch(e){}
+  liveProc=liveStream=liveCap=livePlay=liveWS=null;liveReady=false;liveSrcs=[];liveNext=0;
+  try{wakeLock&&wakeLock.release()}catch(e){};wakeLock=null;
+  av("speaking",false);
+  $("#cbEnd").onclick=liveOld.end||endCall;$("#cbMute").onclick=liveOld.mute;$("#callSend").onclick=liveOld.send;
+  $("#cbTalk").style.display="";
+}
+function liveFinish(reason){
+  if(liveEnded)return;liveEnded=true;
+  var dur=Date.now()-liveStart;
+  liveCleanup();liveOn=false;$("#callOv").hidden=true;
+  var Y=liveLog.filter(function(x){return x.r==="u"}).map(function(x){return x.t}).join(" ");
+  liveLog.forEach(function(x){mem.chat.push({r:x.r,t:x.t});addRow(x.r==="u"?"u":"j",x.t)});
+  addSys("Call ended. Duration "+fmtTime(dur)+(reason?" ("+reason+")":""));
+  mem.lastSeen=Date.now();save();touchAct();
+  if(liveLog.length>=3)liveRemember(liveLog);
+}
+async function liveRemember(log){
+  try{
+    var tr=log.map(function(x){return (x.r==="u"?"Him: ":"Jenny: ")+x.t}).join("\n").slice(-3500);
+    var raw=await callBrain('From this phone-call transcript, list durable facts he told about himself (name, family, goals, exams, likes, mood, plans). Only facts he actually said. Reply ONLY JSON: {"remember":["short fact"]}\n\n'+tr);
+    var o=parseJSON(raw);(o.remember||[]).slice(0,6).forEach(function(f){f=String(f).trim();if(f&&mem.facts.indexOf(f)<0)mem.facts.push(f)});
+    save();
+  }catch(e){}
+}
+async function startLive(){
+  if(liveOn||callActive)return;
+  liveOn=true;liveEnded=false;liveReady=false;liveMuted=false;liveJ="";liveY="";liveLog=[];liveStart=Date.now();
+  if(!started){$("#startOv").hidden=true;started=true;renderHistory()}
+  var k=geminiKeyOf();
+  $("#callOv").hidden=false;$("#capJ").textContent="";$("#capY").textContent="";$("#callNote").textContent="Connect ho rahi hai...";$("#callTime").textContent="Calling...";
+  $("#cbMute").textContent="Mute";$("#cbMute").classList.remove("on");$("#cbTalk").style.display="none";
+  liveOld={end:$("#cbEnd").onclick,mute:$("#cbMute").onclick,send:$("#callSend").onclick};
+  $("#cbEnd").onclick=function(){liveFinish("")};
+  $("#cbMute").onclick=function(){liveMuted=!liveMuted;var b=$("#cbMute");b.textContent=liveMuted?"Unmute":"Mute";b.classList.toggle("on",liveMuted)};
+  $("#callSend").onclick=function(){var i=$("#callIn"),t=i.value.trim();if(t){i.value="";liveSendText(t)}};
+  try{
+    stopSpeak();stopListen();
+    try{if(navigator.wakeLock)wakeLock=await navigator.wakeLock.request("screen")}catch(e){wakeLock=null}
+    var model=await liveModelName(k);
+    liveStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}});
+    var AC=window.AudioContext||window.webkitAudioContext;
+    livePlay=new AC({sampleRate:24000});try{await livePlay.resume()}catch(e){}
+    liveCap=new AC({sampleRate:16000});try{await liveCap.resume()}catch(e){}
+    var ws=new WebSocket("wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key="+encodeURIComponent(k));
+    liveWS=ws;
+    await new Promise(function(resolve,reject){
+      var done=false,to=setTimeout(function(){if(!done){done=true;reject(new Error("Connect hone mein bahut der lagi"))}},15000);
+      ws.onopen=function(){
+        ws.send(JSON.stringify({setup:{model:"models/"+model,
+          generationConfig:{responseModalities:["AUDIO"],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:"Aoede"}}}},
+          systemInstruction:{parts:[{text:liveSystem()}]},
+          inputAudioTranscription:{},outputAudioTranscription:{}}}));
+      };
+      ws.onerror=function(){if(!done){done=true;clearTimeout(to);reject(new Error("Network error"))}};
+      ws.onclose=function(ev){
+        if(!done){done=true;clearTimeout(to);reject(new Error((ev.reason||("band ho gaya (code "+ev.code+")")).slice(0,160)))}
+        else if(liveOn&&!liveEnded)liveFinish(ev.reason?String(ev.reason).slice(0,80):"");
+      };
+      ws.onmessage=async function(ev){
+        var txt=typeof ev.data==="string"?ev.data:await ev.data.text();
+        var m;try{m=JSON.parse(txt)}catch(e){return}
+        if(m.setupComplete&&!done){done=true;clearTimeout(to);liveReady=true;resolve();return}
+        liveHandle(m);
+      };
+    });
+    // mic streaming
+    var srcN=liveCap.createMediaStreamSource(liveStream);
+    liveProc=liveCap.createScriptProcessor(2048,1,1);
+    liveProc.onaudioprocess=function(e){
+      if(!liveReady||liveMuted||!liveWS||liveWS.readyState!==1)return;
+      liveWS.send(JSON.stringify({realtimeInput:{audio:{data:pcmB64(e.inputBuffer.getChannelData(0)),mimeType:"audio/pcm;rate=16000"}}}));
+    };
+    var mute=liveCap.createGain();mute.gain.value=0;srcN.connect(liveProc);liveProc.connect(mute);mute.connect(liveCap.destination);
+    $("#callNote").textContent="Earphones lagao to awaaz aur saaf aati hai.";
+    clearInterval(liveTick);liveStart=Date.now();
+    liveTick=setInterval(function(){$("#callTime").textContent=fmtTime(Date.now()-liveStart)},1000);
+    liveWS.send(JSON.stringify({clientContent:{turns:[{role:"user",parts:[{text:"(The phone is ringing and he just called you. Pick up happily like a girlfriend whose boyfriend called: a warm natural hello and one caring question"+(hoursSince()===null?", and since it is the first time, introduce yourself and ask his name":"")+".)"}]}],turnComplete:true}}));
+  }catch(e){
+    var why=(e&&e.name==="NotAllowedError")?"Mic ki permission nahi mili":(e&&e.message)||String(e);
+    liveCleanup();liveOn=false;$("#callOv").hidden=true;
+    addSys("Live voice call nahi chali ("+why+"). Purani call mode chalu kar rahi hoon.");
+    startCall();
+  }
+}
+function liveHandle(m){
+  var sc=m.serverContent;if(!sc)return;
+  if(sc.interrupted){liveInterrupt();if(liveJ){liveLog.push({r:"j",t:liveJ.trim()});liveJ=""}}
+  if(sc.inputTranscription&&sc.inputTranscription.text){
+    if(liveJ){liveLog.push({r:"j",t:liveJ.trim()});liveJ=""}
+    liveY+=sc.inputTranscription.text;touchAct();liveCaption();
+  }
+  if(sc.modelTurn&&sc.modelTurn.parts){
+    sc.modelTurn.parts.forEach(function(p){if(p.inlineData&&p.inlineData.data)livePlayChunk(p.inlineData.data)});
+  }
+  if(sc.outputTranscription&&sc.outputTranscription.text){
+    if(liveY.trim()){liveLog.push({r:"u",t:liveY.trim()});liveY=""}
+    liveJ+=sc.outputTranscription.text;lastAct=Date.now();liveCaption();
+  }
+  if(sc.turnComplete){
+    if(liveJ.trim()){liveLog.push({r:"j",t:liveJ.trim()});}
+    liveJ="";lastAct=Date.now();
+  }
+}
+function startCallAny(){if(liveOn||callActive)return;if(liveAvailable())startLive();else startCall()}
+
+$("#btnCall").onclick=startCallAny;
+$("#startCall").onclick=startCallAny;
 $("#cbEnd").onclick=endCall;
 $("#cbMute").onclick=function(){
   callMuted=!callMuted;
