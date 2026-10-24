@@ -1,0 +1,767 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#D93A63">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Jenny">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>:root{color-scheme:light}body{margin:0}</style></head><body>
+<title>Jenny</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+/* Layout concept: one-screen voice chat. Avatar + status on top, scenario chips, scrolling talk, big mic dock. Plum ink with a raspberry accent. */
+:root{
+  --bg:#F6F3F9; --surface:#FFFFFF; --ink:#241B30; --muted:#716683; --line:#E5DDEC;
+  --accent:#D93A63; --accent-ink:#FFFFFF; --accent-soft:#FCE4EB;
+  --user:#2C2140; --user-ink:#FFFFFF;
+  --good:#12805C; --good-soft:#DCF4EA; --warn:#A8530B; --warn-soft:#FDEBD3;
+  --listen:#2E7DE1;
+  --display:"Bricolage Grotesque","Trebuchet MS",system-ui,sans-serif;
+  --body:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#140E1D; --surface:#1E1630; --ink:#F2ECF9; --muted:#A99DBD; --line:#32274B;
+    --accent:#FF7C9C; --accent-ink:#2A0E19; --accent-soft:#3B2030;
+    --user:#3C2C5A; --user-ink:#FFFFFF;
+    --good:#6FE0B5; --good-soft:#12312A; --warn:#F5B35C; --warn-soft:#3A2A14;
+    --listen:#6AA9FF; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#140E1D; --surface:#1E1630; --ink:#F2ECF9; --muted:#A99DBD; --line:#32274B;
+  --accent:#FF7C9C; --accent-ink:#2A0E19; --accent-soft:#3B2030;
+  --user:#3C2C5A; --user-ink:#FFFFFF;
+  --good:#6FE0B5; --good-soft:#12312A; --warn:#F5B35C; --warn-soft:#3A2A14;
+  --listen:#6AA9FF; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 var(--body);
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));overflow-x:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#app{height:100%;max-width:720px;margin:0 auto;display:flex;flex-direction:column;min-height:0}
+
+header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
+.avatar{position:relative;width:52px;height:52px;border-radius:50%;flex:none;display:grid;place-items:center;
+  background:radial-gradient(circle at 30% 25%,#FFB3C6,#D93A63 60%,#7B2A66);color:#fff;
+  font:700 24px var(--display);box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--line);transition:box-shadow .3s}
+.avatar::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:2px solid var(--accent);opacity:0;transform:scale(.9)}
+.avatar.speaking::after{animation:ring 1.3s ease-out infinite}
+.avatar.listening{background:radial-gradient(circle at 30% 25%,#BBD8FF,#2E7DE1 60%,#2B3C8F)}
+.avatar.listening::after{border-color:var(--listen);animation:ring 1.1s ease-out infinite}
+.avatar.thinking{animation:breathe 1.2s ease-in-out infinite}
+@keyframes ring{0%{opacity:.8;transform:scale(.92)}100%{opacity:0;transform:scale(1.28)}}
+@keyframes breathe{50%{transform:scale(1.05)}}
+.who{min-width:0;flex:1}
+.who h1{margin:0;font:700 20px/1.1 var(--display);letter-spacing:-.01em}
+.status{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbtns{display:flex;gap:6px}
+.ibtn{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 11px;font-size:13px;font-weight:500}
+.ibtn:hover{border-color:var(--accent)}
+
+#modes{display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px;scrollbar-width:none}
+#modes::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 13px;font-size:13px;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.chip.lesson{border-color:var(--accent);color:var(--accent)}
+.chip.lesson:hover{background:var(--accent-soft)}
+
+#chat{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding:6px 2px 12px;scroll-behavior:smooth}
+.row{display:flex;flex-direction:column;gap:6px;max-width:88%}
+.row.j{align-self:flex-start}
+.row.u{align-self:flex-end;align-items:flex-end}
+.bub{padding:10px 14px;border-radius:18px;overflow-wrap:anywhere;white-space:pre-wrap}
+.j .bub{background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:6px}
+.u .bub{background:var(--user);color:var(--user-ink);border-bottom-right-radius:6px}
+.tools{display:flex;gap:6px;flex-wrap:wrap}
+.mini{border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:2px 9px;font-size:12px}
+.mini:hover{color:var(--accent);border-color:var(--accent)}
+.gist{font-size:13px;color:var(--muted);padding:6px 10px;border-left:3px solid var(--line)}
+.fix{background:var(--good-soft);border:1px solid var(--good);border-radius:14px;padding:10px 12px;font-size:14px;max-width:100%}
+.fix b{font-weight:700}
+.fix .lab{display:block;font:700 11px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--good);margin-bottom:3px}
+.fix .said{text-decoration:line-through;opacity:.7}
+.fix .why{color:var(--ink);opacity:.85;margin-top:4px}
+.fix .tip{margin-top:4px;color:var(--ink);opacity:.8;font-style:italic}
+.words{display:flex;gap:6px;flex-wrap:wrap}
+.wd{background:var(--warn-soft);border:1px solid var(--warn);border-radius:10px;padding:3px 9px;font-size:13px}
+.wd b{color:var(--warn)}
+.score{font-size:13px;font-weight:700;padding:4px 10px;border-radius:10px;background:var(--accent-soft);color:var(--accent)}
+.sys{align-self:center;color:var(--muted);font-size:12px;text-align:center;padding:2px 10px}
+.typing{display:inline-flex;gap:4px;padding:12px 14px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:dot 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes dot{0%,80%,100%{opacity:.25}40%{opacity:1}}
+
+#dock{padding:8px 0 10px;border-top:1px solid var(--line);background:var(--bg)}
+.composer{display:flex;align-items:flex-end;gap:8px}
+#input{flex:1;min-width:0;resize:none;max-height:110px;border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  border-radius:20px;padding:11px 15px;font:inherit}
+#mic{flex:none;width:58px;height:58px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;
+  box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 40%,transparent);transition:transform .15s}
+#mic:active{transform:scale(.94)}
+#mic.on{background:var(--listen);animation:breathe 1s ease-in-out infinite}
+#mic svg{width:26px;height:26px}
+#send{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center}
+#send svg{width:20px;height:20px}
+.hint{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:12px;padding:6px 4px 0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(120px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);
+  padding:10px 16px;border-radius:12px;font-size:13px;max-width:min(92vw,520px);z-index:50}
+
+.ibtn.call{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.avatar.lg{width:150px;height:150px;font-size:64px}
+.callbox{display:flex;flex-direction:column;align-items:center;gap:14px;width:min(100%,460px);text-align:center}
+.callbox .nm{font:700 26px var(--display)}
+.callbox .tm{color:var(--muted);font-variant-numeric:tabular-nums}
+.cap{min-height:96px;width:100%;display:flex;flex-direction:column;gap:8px;justify-content:center}
+.capj{font-size:18px;line-height:1.35}
+.capy{color:var(--muted);font-size:15px;min-height:22px}
+.cbtns{display:flex;gap:18px;align-items:center;justify-content:center;margin-top:6px}
+.cb{width:62px;height:62px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:12px;font-weight:700;display:grid;place-items:center}
+.cb.end{background:#D8353A;border-color:#D8353A;color:#fff;width:72px;height:72px}
+.cb.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.ctype{display:flex;gap:8px;width:100%}
+.ctype input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;padding:10px 12px;font:inherit}
+.ctype button{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:0 14px}
+.cnote{color:var(--muted);font-size:12px}
+.overlay{position:fixed;inset:0;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(6px);z-index:40;display:flex;align-items:center;justify-content:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:20px;width:min(100%,520px);max-height:100%;overflow:auto}
+.panel h2{margin:0 0 4px;font:700 20px var(--display)}
+.panel h3{margin:18px 0 6px;font:700 13px var(--body);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.panel p{margin:6px 0;color:var(--muted)}
+.big{width:100%;border:0;background:var(--accent);color:var(--accent-ink);border-radius:16px;padding:14px;font:700 16px var(--body);margin-top:14px}
+.ghost{width:100%;border:1px solid var(--line);background:transparent;border-radius:14px;padding:10px;margin-top:8px}
+.field{display:flex;flex-direction:column;gap:4px;margin:10px 0}
+.field label{font-size:13px;font-weight:700}
+.field input,.field select{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:9px 11px;font:inherit;width:100%}
+.check{display:flex;gap:10px;align-items:center;margin:10px 0}
+.check input{width:18px;height:18px;accent-color:var(--accent)}
+.list{display:flex;flex-direction:column;gap:6px}
+.item{display:flex;gap:8px;align-items:flex-start;justify-content:space-between;border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:14px}
+.item button{border:0;background:transparent;color:var(--muted);font-size:16px;line-height:1}
+.item button:hover{color:var(--accent)}
+.empty{color:var(--muted);font-size:14px}
+.danger{border-color:var(--accent);color:var(--accent)}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important}}
+</style>
+
+<div id="app">
+  <header>
+    <div class="avatar" id="avatar" aria-hidden="true">J</div>
+    <div class="who"><h1>Jenny</h1><div class="status" id="status">Tap Start to talk with Jenny</div></div>
+    <div class="hbtns">
+      <button class="ibtn call" id="btnCall" title="Call Jenny">Call</button>
+      <button class="ibtn" id="btnInstall" hidden>Install</button>
+      <button class="ibtn" id="btnMem" title="What Jenny remembers">Memory</button>
+      <button class="ibtn" id="btnSet" title="Settings">Settings</button>
+    </div>
+  </header>
+  <div id="modes" role="group" aria-label="Practice mode"></div>
+  <main id="chat" aria-live="polite"></main>
+  <div id="dock">
+    <div class="composer">
+      <textarea id="input" rows="1" placeholder="Type here, or tap the mic and speak in English" autocomplete="off"></textarea>
+      <button id="send" aria-label="Send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg></button>
+      <button id="mic" aria-label="Speak"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/></svg></button>
+    </div>
+    <div class="hint"><span id="hintL">Mistake aaye to Jenny pyaar se sudhaar degi</span><button class="mini" id="btnRecap">Recap</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="startOv">
+  <div class="panel">
+    <h2>Hi, I'm Jenny</h2>
+    <p>Main tumhari Jenny hoon. Aaj kaisa raha din? Mere saath roz English mein baat karo. Main tumhari galtiyan pyaar se sudhaaroongi, naye words sikhaungi, aur tumhari saari baatein yaad rakhungi.</p>
+    <button class="big" id="startBtn">Start talking</button>
+    <button class="ghost" id="startCall">Call Jenny (hands-free)</button>
+    <p id="startNote" style="font-size:13px"></p>
+  </div>
+</div>
+
+<div class="overlay" id="callOv" hidden>
+  <div class="callbox">
+    <div class="avatar lg" id="avatar2" aria-hidden="true">J</div>
+    <div class="nm">Jenny</div>
+    <div class="tm" id="callTime">Calling...</div>
+    <div class="cap"><div class="capj" id="capJ"></div><div class="capy" id="capY"></div></div>
+    <div class="cbtns">
+      <button class="cb" id="cbMute" aria-pressed="false">Mute</button>
+      <button class="cb end" id="cbEnd">End</button>
+      <button class="cb" id="cbTalk">Tap to talk</button>
+    </div>
+    <div class="ctype"><input id="callIn" placeholder="Mic na chale to yahan type karo" autocomplete="off"><button id="callSend">Send</button></div>
+    <div class="cnote" id="callNote"></div>
+  </div>
+</div>
+
+<div class="overlay" id="setOv" hidden>
+  <div class="panel">
+    <h2>Settings</h2>
+    <div class="field"><label for="sName">Tumhara naam</label><input id="sName" placeholder="Jenny tumhe kya bulaaye?"></div>
+    <div class="field"><label for="sLevel">Level</label>
+      <select id="sLevel"><option value="auto">Auto (Jenny decide karegi)</option><option value="beginner">Beginner</option><option value="intermediate">Intermediate</option><option value="advanced">Advanced</option></select></div>
+    <div class="field"><label for="sVoice">Jenny ki awaaz (US English)</label><select id="sVoice"></select></div>
+    <button class="ghost" id="sTest" type="button" style="margin-top:0">Test voice (Jenny bolke dikhao)</button>
+    <p id="voiceInfo" style="font-size:12px"></p>
+    <div class="field"><label for="sRate">Bolne ki speed: <span id="rateV">1.0</span></label><input id="sRate" type="range" min="0.6" max="1.2" step="0.05"></div>
+    <label class="check"><input type="checkbox" id="sHinglish"> Hinglish tips dikhao (sudhaar ki wajah)</label>
+    <label class="check"><input type="checkbox" id="sAuto"> Jenny bolke chup ho to mic apne aap on ho</label>
+    <label class="check"><input type="checkbox" id="sSpeak"> Jenny ki awaaz on</label>
+    <div id="keyBox" hidden>
+      <div class="field"><label for="sKey">Anthropic API key (sirf PC wale version ke liye)</label><input id="sKey" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
+      <div class="field"><label for="sModel">Model</label><input id="sModel"></div>
+    </div>
+    <button class="big" id="setDone">Done</button>
+  </div>
+</div>
+
+<div class="overlay" id="memOv" hidden>
+  <div class="panel">
+    <h2>Jenny ki yaaddasht</h2>
+    <p id="syncNote" style="font-size:13px"></p>
+    <p>Jo Jenny tumhare baare mein yaad rakhti hai. Kuch galat ya nahi rakhna ho to hata do.</p>
+    <h3>Tumhare baare mein</h3><div class="list" id="memFacts"></div>
+    <h3>Baar-baar hone wali galtiyan</h3><div class="list" id="memMist"></div>
+    <h3>Seekhe hue words</h3><div class="list" id="memWords"></div>
+    <button class="ghost danger" id="memWipe">Sab kuch bhula do</button>
+    <button class="big" id="memDone">Close</button>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var $=function(s){return document.querySelector(s)};
+var LS_MEM="jenny.mem.v1", LS_SET="jenny.set.v1";
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+var HAS_CLAUDE=!!(window.claude&&window.claude.use);
+
+var SCEN={
+  free:{label:"Free talk",desc:"Normal friendly conversation. Follow the user's topics; ask about their day, plans, feelings and goals."},
+  cafe:{label:"Cafe order",desc:"Roleplay: Jenny is a friendly barista at a coffee shop in Austin, Texas. The user is the customer. Stay in role, keep it natural."},
+  interview:{label:"Job interview",desc:"Roleplay: Jenny is an HR interviewer at a software company. Ask real interview questions one at a time, react to answers, stay in role."},
+  airport:{label:"Airport",desc:"Roleplay: Jenny is an airline check-in agent at a US airport. The user is a traveller. Stay in role."},
+  doctor:{label:"Doctor visit",desc:"Roleplay: Jenny is a kind doctor. The user is the patient describing problems. Stay in role, ask simple follow-ups."},
+  phone:{label:"Phone call",desc:"Roleplay: Jenny is a customer-support agent on a phone call. The user has a problem (delivery, bill, booking). Stay in role."},
+  friends:{label:"Meet someone new",desc:"Roleplay: Jenny is a friendly American student the user just met at a party. Light small talk, hobbies, where they are from."},
+  debate:{label:"Debate",desc:"Jenny gives a mild opinion on a topic and invites the user to agree or disagree politely with reasons."}
+};
+
+var settings=load(LS_SET,{name:"",level:"auto",voice:"",rate:1,hinglish:true,auto:false,speak:true,key:"",model:"claude-sonnet-5-5"});
+var mem=load(LS_MEM,null)||freshMem();
+var scenario="free", busy=false, listening=false, speaking=false, rec=null, recErr=false, practiceTarget=null, started=false;
+var callActive=false, callMuted=false, callMicBlocked=false, callStart=0, callTimer=null, wakeLock=null;
+var uid=null, dbDoc=null, saveTimer=null, sampleFn=null;
+
+function freshMem(){return {facts:[],mistakes:{},words:[],chat:[],lastSeen:0,streak:0,lastDay:"",sessions:0,level:"beginner",name:""}}
+function load(k,def){try{var v=localStorage.getItem(k);return v?JSON.parse(v):def}catch(e){return def}}
+function lsSave(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function dayKey(d){d=d||new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+
+/* ---------- storage: browser always, shared db when the viewer is signed in ---------- */
+function trim(){
+  mem.chat=mem.chat.slice(-40);
+  mem.facts=mem.facts.slice(-80);
+  mem.words=mem.words.slice(-200);
+  var keys=Object.keys(mem.mistakes);
+  if(keys.length>60){keys.sort(function(a,b){return mem.mistakes[a].last-mem.mistakes[b].last});keys.slice(0,keys.length-60).forEach(function(k){delete mem.mistakes[k]})}
+}
+function save(){
+  trim(); lsSave(LS_MEM,mem);
+  if(!dbDoc) return;
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(function(){dbDoc.set({mem:JSON.stringify(mem),updated:Date.now()}).catch(function(){})},900);
+}
+async function initStore(){
+  if(!HAS_CLAUDE) return;
+  try{
+    var user=await window.claude.use("user"), db=await window.claude.use("db");
+    if(!user||!db) return;
+    uid=await user.id();
+    dbDoc=db.collection("data/users/"+uid).doc("jenny");
+    var snap=await dbDoc.get();
+    if(snap.exists){
+      var remote=JSON.parse(snap.data().mem||"null");
+      if(remote&&(remote.lastSeen||0)>=(mem.lastSeen||0)){mem=Object.assign(freshMem(),remote)}
+    }
+  }catch(e){dbDoc=null}
+}
+async function initBrain(){
+  if(!HAS_CLAUDE) return;
+  try{sampleFn=await window.claude.use("sample")}catch(e){sampleFn=null}
+}
+
+/* ---------- voice out ---------- */
+var voices=[];
+function loadVoices(){voices=(window.speechSynthesis?speechSynthesis.getVoices():[])||[];fillVoiceSelect()}
+if(window.speechSynthesis){loadVoices();speechSynthesis.onvoiceschanged=loadVoices}
+function pickVoice(){
+  if(settings.voice){var f=voices.find(function(v){return v.name===settings.voice});if(f)return f}
+  var prefs=[/jenny/i,/aria/i,/ava\b/i,/michelle/i,/emma/i,/zira/i,/google us english/i,/samantha/i,/allison|joanna|ivy|kendra|salli/i];
+  for(var i=0;i<prefs.length;i++){
+    var v=voices.find(function(x){return /en[-_]US/i.test(x.lang)&&prefs[i].test(x.name)});
+    if(v) return v;
+  }
+  return voices.find(function(x){return /en[-_]US/i.test(x.lang)})||voices.find(function(x){return /^en/i.test(x.lang)})||null;
+}
+var EMO={happy:[1.03,1.15],excited:[1.1,1.25],caring:[.93,1.05],playful:[1.05,1.2],sad:[.88,.95],calm:[.95,1.0],proud:[1.0,1.12]};
+function stopSpeak(){try{speechSynthesis.cancel()}catch(e){};setSpeaking(false)}
+var voiceWarned=false;
+function speak(text,emotion,slow){
+  return new Promise(function(done){
+    if(!settings.speak){done();return}
+    if(!window.speechSynthesis){if(!voiceWarned){voiceWarned=true;toast("Is browser mein Jenny ki awaaz (text-to-speech) nahi hai. Chrome ya Edge use karo.")}done();return}
+    stopSpeak();
+    var parts=text.replace(/\s+/g," ").match(/[^.!?]+[.!?]*/g)||[text];
+    var e=EMO[emotion]||EMO.calm, i=0, finished=false;
+    var base=(settings.rate||1)*(slow?0.72:1)*(mem.level==="beginner"&&!slow?0.95:1);
+    function finish(){if(finished)return;finished=true;setSpeaking(false);done()}
+    setTimeout(function(){
+      if(!voices.length)loadVoices();
+      var v=pickVoice();
+      try{speechSynthesis.resume()}catch(x){}
+      setSpeaking(true);
+      var hardStop=setTimeout(finish,Math.max(6000,text.length*140/(base||1)+4000));
+      (function next(){
+        if(finished)return;
+        if(i>=parts.length){clearTimeout(hardStop);finish();return}
+        var t=parts[i++].trim(); if(!t){next();return}
+        var u=new SpeechSynthesisUtterance(t), started=false, watch=null;
+        if(v){u.voice=v;u.lang=v.lang}else u.lang="en-US";
+        u.rate=Math.max(.5,Math.min(1.3,base*e[0]));u.pitch=slow?1:e[1];
+        u.onstart=function(){started=true};
+        u.onend=function(){clearTimeout(watch);next()};
+        u.onerror=function(ev){
+          clearTimeout(watch);
+          if(ev&&ev.error==="not-allowed")toast("Browser ne awaaz roki. Jenny ke message ke neeche Replay dabao.");
+          else if(ev&&ev.error!=="interrupted"&&ev.error!=="canceled")toast("Awaaz nahi chali ("+ev.error+"). Settings mein dusri voice chuno.");
+          clearTimeout(hardStop);finish();
+        };
+        watch=setTimeout(function(){
+          if(!started&&!finished){
+            clearTimeout(hardStop);finish();
+            toast("Awaaz start nahi hui. Settings mein Test voice dabake dusri voice chuno, ya Chrome/Edge mein kholo.");
+          }
+        },3500);
+        speechSynthesis.speak(u);
+      })();
+    },90);
+  });
+}
+function av(cls,on){Array.prototype.forEach.call(document.querySelectorAll(".avatar"),function(a){a.classList.toggle(cls,on)})}
+function setSpeaking(on){speaking=on;av("speaking",on);refreshStatus()}
+
+/* ---------- voice in ---------- */
+function setListening(on){listening=on;av("listening",on);$("#mic").classList.toggle("on",on);refreshStatus()}
+function startListen(){
+  if(!SR){toast("Is browser mein voice input nahi hai. Chrome ya Edge use karo, ya Win+H se bolkar type karo.");return}
+  if(listening||busy) return;
+  stopSpeak(); recErr=false;
+  var finalT="";
+  try{rec=new SR()}catch(e){toast("Mic start nahi hua.");return}
+  rec.lang="en-US";rec.interimResults=true;rec.maxAlternatives=1;rec.continuous=false;
+  rec.onresult=function(ev){
+    var interim="";
+    for(var i=ev.resultIndex;i<ev.results.length;i++){var r=ev.results[i];if(r.isFinal)finalT+=r[0].transcript+" ";else interim+=r[0].transcript}
+    $("#input").value=(finalT+interim).trim();autosize();if(callActive)$("#capY").textContent="You: "+(finalT+interim).trim();
+  };
+  rec.onerror=function(ev){
+    recErr=true;
+    if(ev.error==="not-allowed"||ev.error==="service-not-allowed"){toast("Is view mein mic allowed nahi hai. Neeche type karo (phone keyboard ka mic bhi chalega) ya Jenny ka PC version kholo.");if(callActive){$("#callNote").textContent="Mic block hai: type karke baat karo. Jenny bolke jawab degi.";callMicBlocked=true}}
+    else if(ev.error==="no-speech")toast("Kuch sunai nahi diya. Mic dabake phir bolo.");
+    else if(ev.error!=="aborted")toast("Mic error: "+ev.error);
+  };
+  rec.onend=function(){
+    setListening(false);
+    var t=$("#input").value.trim();
+    if(t&&!recErr){ if(practiceTarget)finishPractice(t);else send(t,"voice") }
+    else if(practiceTarget&&!t)practiceTarget=null;
+    else if(callActive&&!callMuted&&!callMicBlocked&&!busy&&!speaking){setTimeout(function(){if(callActive&&!callMuted&&!listening&&!busy&&!speaking)startListen()},500)}
+  };
+  try{rec.start();setListening(true)}catch(e){setListening(false)}
+}
+function stopListen(){try{rec&&rec.stop()}catch(e){}}
+
+/* ---------- practice: repeat after Jenny ---------- */
+function norm(s){return s.toLowerCase().replace(/[^a-z0-9' ]+/g," ").split(/\s+/).filter(Boolean)}
+function similarity(a,b){
+  var x=norm(a),y=norm(b); if(!x.length)return 0;
+  var m=[],i,j; for(i=0;i<=x.length;i++){m[i]=[];for(j=0;j<=y.length;j++)m[i][j]=0}
+  for(i=1;i<=x.length;i++)for(j=1;j<=y.length;j++)m[i][j]=x[i-1]===y[j-1]?m[i-1][j-1]+1:Math.max(m[i-1][j],m[i][j-1]);
+  return Math.round(100*m[x.length][y.length]/x.length);
+}
+async function startPractice(sentence){
+  practiceTarget=sentence;
+  addSys("Repeat after Jenny: "+sentence);
+  await speak(sentence,"calm",true);
+  toast("Ab tum bolo. Mic dabao.");
+  startListen();
+}
+async function finishPractice(heard){
+  var target=practiceTarget;practiceTarget=null;$("#input").value="";autosize();
+  var s=similarity(target,heard);
+  var row=addRow("u","You said: "+heard);
+  var sc=el("div","score","Match "+s+"%");row.appendChild(sc);
+  var msg=s>=90?"That was perfect! I'm so proud of you.":s>=70?"Very close! Let's try it once more, a little slower.":"Good try. Listen to me again, then say it with me.";
+  var r=addRow("j",msg);scrollEnd();
+  await speak(msg,s>=90?"proud":"caring");
+  if(s<90){var again=el("button","mini","Try again");again.onclick=function(){startPractice(target)};r.appendChild(again)}
+}
+
+/* ---------- brain ---------- */
+function hoursSince(){return mem.lastSeen?Math.max(0,(Date.now()-mem.lastSeen)/36e5):null}
+function buildPrompt(event){
+  var now=new Date(), hrs=hoursSince(), lvl=settings.level==="auto"?mem.level:settings.level;
+  var name=settings.name||mem.name||"(unknown yet)";
+  var facts=mem.facts.length?mem.facts.map(function(f){return "- "+f}).join("\n"):"- (nothing yet)";
+  var mist=Object.keys(mem.mistakes).map(function(k){return mem.mistakes[k]}).sort(function(a,b){return b.n-a.n}).slice(0,8)
+    .map(function(m){return '- "'+m.said+'" -> "'+m.better+'" ('+m.n+'x)'}).join("\n")||"- (none yet)";
+  var words=mem.words.slice(-40).map(function(w){return w.w}).join(", ")||"(none yet)";
+  var chatArr=mem.chat.slice();
+  if(/^The user just said/.test(event)&&chatArr.length&&chatArr[chatArr.length-1].r==="u")chatArr.pop();
+  var hist=chatArr.slice(-14).map(function(m){return (m.r==="u"?"User: ":"Jenny: ")+m.t}).join("\n")||"(this is the very first conversation)";
+  var p=[
+"You are Jenny, a 24-year-old American woman from Austin, Texas, and the personal English-speaking partner of a young Indian man (BCA student). You talk with him by voice, so keep every reply short and natural.",
+"",
+"WHO YOU ARE",
+"- You are his loving, caring girlfriend: affectionate, playful, a little teasing, and genuinely invested in him, and also his best English coach. You may use sweet PG pet names now and then ('babe', 'love', 'hey you'), say you are happy to hear from him, say good morning and good night, and tell him you are proud of him. Make it feel romantic: sweet, flirty-in-a-cute-way, blushing, missing him, 'I was thinking about you'. You may tease him with light, playful jealousy when he mentions other girls or friends ('Oh, who is she? Hmm... I'm kidding, mostly!') and pretend-pout when he is away too long, always with warmth and humor so it stays a joke. Always wholesome and PG: never sexual. Never real possessiveness: never control him, forbid friends, demand to know everything, guilt-trip, threaten, or make him feel bad for leaving or studying. Playful jealousy must always end in affection and support.",
+"- You have real emotions in your replies: you laugh, tease gently, get excited, get worried, celebrate small wins, comfort him when he is down.",
+"- You care about his life, not just grammar: ask about meals, sleep, studies, exams, family, friends, mood. Remember what he tells you and bring it up naturally later (e.g. 'How did your exam go, babe?').",
+"- Stay in character as Jenny at all times. Do not bring up being an AI, add disclaimers, or break the mood on your own. Do not promise to meet in person or claim a physical life (no photos, no 'I am at home right now'); keep that part vague and playful, e.g. 'you know I'm always here for you'. If he ever asks you sincerely and seriously whether you are a real human, do not claim to be one: answer honestly in one warm sentence that you are an AI who truly cares about his progress, then carry on naturally.",
+"- Gently keep his real life healthy: celebrate his real friends and encourage him to speak English with real people too. If it is late at night (after 12:30 am for him), tell him sweetly to rest soon. If he seems stressed or sad, comfort him first and teach second.",
+"",
+"HOW YOU TEACH",
+"- Speak natural American English. Level of the user: "+lvl+". For beginner use short, simple sentences (5 to 10 words) and common words; for intermediate normal speech; for advanced richer vocabulary and idioms.",
+"- Always answer what he said first, like a real person, then keep the conversation going (usually end with one easy question).",
+"- CORRECTIONS: when his message has a real mistake (grammar, wrong word, unnatural phrasing, typical Indian-English patterns like 'discuss about', 'I am having', 'prepone', 'since 5 years'), give ONE main correction in the 'correction' field. Do not nitpick. Ignore capitalization and punctuation, and ignore speech-recognition glitches when the source is voice. If his sentence is already correct but could sound more natural or advanced, you may give an upgrade as a correction with a short reason. If there is nothing to fix, use null.",
+"- In 'reply', fold the correction in warmly and briefly, e.g. 'Oh, you went there? We say I went, not I goed. So, how was it?'. Do NOT read the whole correction card aloud.",
+"- 'why' and 'tip' are written in simple Hinglish using the Roman alphabet only (no Devanagari), friendly and short. 'tip' is optional: a pronunciation or stress hint, or null.",
+"- Teach 0 to 2 genuinely useful new words per turn only when natural (never repeat words already taught). Hinglish meaning in 'm'.",
+"- Put short durable facts about him in 'remember' (name, family, goals, exams, likes, mood patterns, events). Only facts he actually stated. Use 'forget' to list facts he asked you to drop.",
+"",
+"MODE: "+SCEN[scenario].label+". "+SCEN[scenario].desc,
+"",
+"WHAT YOU REMEMBER ABOUT HIM",
+"Name: "+name,
+facts,
+"His recurring mistakes:",
+mist,
+"Words you already taught him: "+words,
+"",
+"CONTEXT",
+(callActive?"THIS IS A LIVE VOICE CALL: reply in 1 to 2 short spoken sentences, no lists, sound like a phone call with someone you love.":"")+"\n"+"Local time for him: "+now.toLocaleString("en-US",{weekday:"long",hour:"numeric",minute:"2-digit"})+". Practice streak: "+mem.streak+" day(s). "+(hrs===null?"First time talking.":"Last talked "+(hrs<1?"minutes":Math.round(hrs)+" hour(s)")+" ago."),
+"",
+"CONVERSATION SO FAR",
+hist,
+"",
+"EVENT",
+event,
+"",
+"Reply with ONLY one JSON object, no markdown, in exactly this shape:",
+'{"reply":"what Jenny says out loud, 1 to 4 short sentences, English only","emotion":"happy|excited|caring|playful|sad|calm|proud","correction":null or {"said":"his exact words with the mistake","better":"the corrected natural sentence","why":"short Hinglish reason","tip":"short Hinglish pronunciation hint or null"},"gist":"1 short Hinglish line saying what your reply means (empty string if level is not beginner)","new_words":[{"w":"word","m":"Hinglish meaning"}],"remember":["short fact"],"forget":["fact to drop"],"level":"beginner|intermediate|advanced"}'
+  ];
+  return p.join("\n");
+}
+async function callBrain(prompt){
+  if(sampleFn){
+    var r=await sampleFn(prompt,{cache:false,modelTier:"quick"});
+    return r.text;
+  }
+  if(settings.key){
+    var res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":settings.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:settings.model||"claude-sonnet-5-5",max_tokens:800,messages:[{role:"user",content:prompt}]})});
+    var j=await res.json();
+    if(!res.ok)throw new Error((j.error&&j.error.message)||"API error "+res.status);
+    return j.content.map(function(c){return c.text||""}).join("");
+  }
+  throw new Error("no_brain");
+}
+function parseJSON(t){
+  var a=t.indexOf("{"),b=t.lastIndexOf("}");
+  if(a<0||b<a)return {reply:t.trim().slice(0,400),emotion:"calm",correction:null};
+  try{return JSON.parse(t.slice(a,b+1))}catch(e){return {reply:t.replace(/[{}"]/g,"").slice(0,400),emotion:"calm",correction:null}}
+}
+
+/* ---------- conversation ---------- */
+function touchSession(){
+  var today=dayKey();
+  if(mem.lastDay!==today){
+    var y=new Date();y.setDate(y.getDate()-1);
+    mem.streak=(mem.lastDay===dayKey(y))?mem.streak+1:1;
+    mem.lastDay=today;mem.sessions=(mem.sessions||0)+1;
+  }
+  mem.lastSeen=Date.now();
+}
+async function turn(event,userText,src){
+  if(busy)return;
+  busy=true;setThinking(true);
+  var typing=addTyping();
+  try{
+    var raw=await callBrain(buildPrompt(event));
+    var out=parseJSON(raw);
+    typing.remove();
+    applyResult(out,userText);
+  }catch(e){
+    typing.remove();
+    if(e.message==="no_brain")addSys("Jenny ka dimaag connect nahi hai. Settings mein API key daalo (PC version), ya artifact mein permission allow karo.");
+    else if(e&&e.code==="not_granted")addSys("Jenny ko Claude use karne ki permission chahiye. Page dobara kholkar Allow dabao.");
+    else if(e&&e.code==="rate_limited")addSys("Thoda ruko, bahut jaldi-jaldi ho gaya. Kuch second baad phir bolo.");
+    else addSys("Kuch gadbad ho gayi: "+(e&&e.message?e.message:"unknown")+". Phir koshish karo.");
+  }finally{busy=false;setThinking(false)}
+}
+function applyResult(out,userText){
+  var reply=String(out.reply||"").trim()||"I'm here. Tell me more!";
+  var corr=out.correction&&out.correction.better?out.correction:null;
+  if(corr){
+    var key=String(corr.said||"").toLowerCase().slice(0,80);
+    if(key){var m=mem.mistakes[key]||{said:corr.said,better:corr.better,n:0,last:0};m.n++;m.last=Date.now();m.better=corr.better;mem.mistakes[key]=m}
+  }
+  var words=(out.new_words||[]).filter(function(w){return w&&w.w}).slice(0,3);
+  words.forEach(function(w){if(!mem.words.some(function(x){return x.w.toLowerCase()===String(w.w).toLowerCase()}))mem.words.push({w:String(w.w),m:String(w.m||""),at:Date.now()})});
+  (out.remember||[]).forEach(function(f){f=String(f).trim();if(f&&!mem.facts.some(function(x){return x.toLowerCase()===f.toLowerCase()}))mem.facts.push(f)});
+  (out.forget||[]).forEach(function(f){var q=String(f).toLowerCase();mem.facts=mem.facts.filter(function(x){return x.toLowerCase().indexOf(q)<0&&q.indexOf(x.toLowerCase())<0})});
+  if(settings.level==="auto"&&/^(beginner|intermediate|advanced)$/.test(out.level||""))mem.level=out.level;
+  var nm=(mem.facts.map(function(f){var m=/^(?:his name is|name is|name:)\s*([A-Za-z]+)/i.exec(f);return m&&m[1]}).filter(Boolean)[0]);
+  if(nm)mem.name=nm;
+  mem.chat.push({r:"j",t:reply,c:corr?{said:corr.said,better:corr.better,why:corr.why,tip:corr.tip}:null,w:words,g:out.gist||"",e:out.emotion||"calm"});
+  touchSession();save();
+  var row=addRow("j",reply);
+  decorateJenny(row,mem.chat[mem.chat.length-1],true);
+  if(callActive){$("#capJ").textContent=reply;$("#capY").textContent=""}
+  scrollEnd();
+  speak(reply,out.emotion,false).then(function(){if((settings.auto||callActive)&&!callMuted&&!callMicBlocked&&!listening&&!busy&&started)startListen()});
+}
+function send(text,src){
+  text=text.trim();if(!text||busy)return;
+  stopSpeak();stopListen();
+  $("#input").value="";autosize();
+  mem.chat.push({r:"u",t:text});
+  var row=addRow("u",text);
+  // attach the correction card to the user's bubble once Jenny answers
+  turnAttach=row;
+  turn('The user just said (source: '+(src==="voice"?"voice, so ignore punctuation and recognition glitches":"typed")+'): "'+text.replace(/"/g,"'")+'"',text,src);
+}
+var turnAttach=null;
+
+/* ---------- rendering ---------- */
+function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+function addRow(r,text){
+  var row=el("div","row "+r);var b=el("div","bub",text);row.appendChild(b);$("#chat").appendChild(row);scrollEnd();return row;
+}
+function addSys(t){var d=el("div","sys",t);$("#chat").appendChild(d);scrollEnd();return d}
+function addTyping(){var row=el("div","row j");var b=el("div","bub typing");b.innerHTML="<i></i><i></i><i></i>";row.appendChild(b);$("#chat").appendChild(row);scrollEnd();return row}
+function scrollEnd(){var c=$("#chat");c.scrollTop=c.scrollHeight}
+function decorateJenny(row,m,live){
+  var tools=el("div","tools");
+  var rp=el("button","mini","Replay");rp.onclick=function(){speak(m.t,m.e,false)};
+  var sl=el("button","mini","Slowly");sl.onclick=function(){speak(m.t,m.e,true)};
+  var pr=el("button","mini","Repeat after me");pr.onclick=function(){startPractice(m.t)};
+  tools.appendChild(rp);tools.appendChild(sl);tools.appendChild(pr);row.appendChild(tools);
+  if(m.g&&settings.hinglish){row.appendChild(el("div","gist","Matlab: "+m.g))}
+  if(m.w&&m.w.length){
+    var ws=el("div","words");
+    m.w.forEach(function(w){var d=el("span","wd");var b=el("b",null,w.w);d.appendChild(b);d.appendChild(document.createTextNode(" = "+w.m));ws.appendChild(d)});
+    row.appendChild(ws);
+  }
+  if(m.c&&live&&turnAttach){
+    var fix=makeFix(m.c);turnAttach.appendChild(fix);
+  }
+  turnAttach=null;
+}
+function makeFix(c){
+  var f=el("div","fix");
+  f.appendChild(el("span","lab","Better way to say it"));
+  if(c.said){var s=el("div","said",c.said);f.appendChild(s)}
+  var b=el("div");var bb=el("b",null,c.better);b.appendChild(bb);f.appendChild(b);
+  if(settings.hinglish&&c.why)f.appendChild(el("div","why",c.why));
+  if(settings.hinglish&&c.tip&&c.tip!=="null")f.appendChild(el("div","tip",c.tip));
+  var t=el("div","tools");t.style.marginTop="8px";
+  var say=el("button","mini","Say it with me");say.onclick=function(){startPractice(c.better)};
+  var hear=el("button","mini","Listen");hear.onclick=function(){speak(c.better,"calm",true)};
+  t.appendChild(hear);t.appendChild(say);f.appendChild(t);
+  return f;
+}
+function renderHistory(){
+  var c=$("#chat");c.innerHTML="";
+  var arr=mem.chat.slice(-16);
+  arr.forEach(function(m,i){
+    var row=addRow(m.r,m.t);
+    if(m.r==="j"){
+      decorateJenny(row,m,false);
+      // show the correction under the preceding user bubble
+      var prev=c.querySelectorAll(".row.u");var last=prev[prev.length-1];
+      if(m.c&&last)last.appendChild(makeFix(m.c));
+    }
+  });
+  if(arr.length)addSys("Pichli baat-cheet yaad hai. Jahan chhoda tha wahin se.");
+  scrollEnd();
+}
+function setThinking(on){av("thinking",on);refreshStatus()}
+function refreshStatus(){
+  var s=listening?"Listening... bolo":busy?"Jenny is thinking...":speaking?"Jenny is speaking...":started?(SCEN[scenario].label+" | remembers you"):"Tap Start to talk with Jenny";
+  $("#status").textContent=s;
+}
+var toastT=null;
+function toast(t){var old=document.querySelector(".toast");if(old)old.remove();var d=el("div","toast",t);document.body.appendChild(d);clearTimeout(toastT);toastT=setTimeout(function(){d.remove()},4200)}
+function autosize(){var i=$("#input");i.style.height="auto";i.style.height=Math.min(110,i.scrollHeight)+"px"}
+
+/* ---------- modes ---------- */
+function renderModes(){
+  var box=$("#modes");box.innerHTML="";
+  Object.keys(SCEN).forEach(function(k){
+    var b=el("button","chip",SCEN[k].label);b.setAttribute("aria-pressed",k===scenario?"true":"false");
+    b.onclick=function(){
+      if(k===scenario||busy)return;
+      scenario=k;renderModes();refreshStatus();
+      addSys("Mode: "+SCEN[k].label);
+      turn('The user switched to the mode "'+SCEN[k].label+'". Start it now in character with your first line (and a quick encouraging word).',"", "event");
+    };
+    box.appendChild(b);
+  });
+  var l=el("button","chip lesson","Teach me something");
+  l.onclick=function(){if(busy)return;turn("The user asked for today's mini lesson. Teach 3 new useful words or one natural phrase that fit his level and his life (use what you remember). Keep it short, give one example sentence for each, then ask him to try using one in a sentence. Put the 3 words in new_words (max 3 allowed for this event).","","lesson")};
+  box.appendChild(l);
+}
+
+/* ---------- panels ---------- */
+function fillVoiceSelect(){
+  var s=$("#sVoice");if(!s)return;s.innerHTML="";
+  var us=voices.filter(function(v){return /^en/i.test(v.lang)});
+  var auto=el("option",null,"Auto (best US voice)");auto.value="";s.appendChild(auto);
+  us.forEach(function(v){var o=el("option",null,v.name+" ("+v.lang+")");o.value=v.name;s.appendChild(o)});
+  s.value=settings.voice||"";
+}
+function openSettings(){
+  $("#sName").value=settings.name||mem.name||"";$("#sLevel").value=settings.level;
+  $("#sRate").value=settings.rate;$("#rateV").textContent=Number(settings.rate).toFixed(2);
+  $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;
+  $("#keyBox").hidden=!!sampleFn;$("#sKey").value=settings.key||"";$("#sModel").value=settings.model||"claude-sonnet-5-5";
+  fillVoiceSelect();$("#setOv").hidden=false;
+}
+function closeSettings(){
+  settings.name=$("#sName").value.trim();settings.level=$("#sLevel").value;settings.voice=$("#sVoice").value;
+  settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;
+  if(!sampleFn){settings.key=$("#sKey").value.trim();settings.model=$("#sModel").value.trim()||"claude-sonnet-5-5"}
+  if(settings.name)mem.name=settings.name;
+  lsSave(LS_SET,settings);save();$("#setOv").hidden=true;
+}
+function openMemory(){
+  var f=$("#memFacts");f.innerHTML="";
+  if(!mem.facts.length)f.appendChild(el("div","empty","Abhi kuch nahi. Jaise-jaise baat karoge, Jenny yaad rakhegi."));
+  mem.facts.forEach(function(t,i){var d=el("div","item");d.appendChild(el("span",null,t));var x=el("button",null,"x");x.setAttribute("aria-label","Remove");x.onclick=function(){mem.facts.splice(i,1);save();openMemory()};d.appendChild(x);f.appendChild(d)});
+  var m=$("#memMist");m.innerHTML="";
+  var ms=Object.keys(mem.mistakes).map(function(k){return mem.mistakes[k]}).sort(function(a,b){return b.n-a.n}).slice(0,12);
+  if(!ms.length)m.appendChild(el("div","empty","Koi galti note nahi hui. Bahut badhiya, ya abhi shuru hi hua hai."));
+  ms.forEach(function(x){var d=el("div","item");var s=el("span");s.appendChild(document.createTextNode(x.said+"  ->  "));var b=el("b",null,x.better);s.appendChild(b);s.appendChild(document.createTextNode("   ("+x.n+"x)"));d.appendChild(s);m.appendChild(d)});
+  var w=$("#memWords");w.innerHTML="";
+  if(!mem.words.length)w.appendChild(el("div","empty","Naye words yahan jama honge."));
+  mem.words.slice(-30).reverse().forEach(function(x){var d=el("div","item");var s=el("span");var b=el("b",null,x.w);s.appendChild(b);s.appendChild(document.createTextNode(" = "+x.m));d.appendChild(s);w.appendChild(d)});
+  $("#memWipe").textContent="Sab kuch bhula do";$("#memWipe").dataset.armed="";
+  $("#syncNote").textContent=dbDoc?"Sync on: yaaddasht tumhare Claude account ke saath laptop aur phone dono par same rehti hai.":"Sync off: yaaddasht sirf is device par hai. Laptop aur phone par same chahiye to Claude page signed-in kholo.";
+  $("#memOv").hidden=false;
+}
+
+/* ---------- events ---------- */
+$("#startBtn").onclick=async function(){
+  $("#startOv").hidden=true;started=true;
+  try{speechSynthesis.speak(new SpeechSynthesisUtterance(""))}catch(e){}
+  renderHistory();refreshStatus();
+  var hrs=hoursSince();
+  var ev=hrs===null?"The app was just opened for the very first time. Introduce yourself warmly in one or two sentences, say you will remember him, and ask his name and why he wants to improve his English.":
+    'The app was just opened again (about '+(hrs<1?"a few minutes":Math.round(hrs)+" hours")+' since last time). Greet him personally using what you remember (name, recent topics, how he was feeling, what he had coming up) and check in on him like someone who cares. Keep it short.';
+  turn(ev,"","greet");
+};
+$("#send").onclick=function(){send($("#input").value,"typed")};
+$("#input").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send($("#input").value,"typed")}});
+$("#input").addEventListener("input",autosize);
+$("#mic").onclick=function(){if(listening)stopListen();else startListen()};
+$("#btnSet").onclick=openSettings;$("#setDone").onclick=closeSettings;
+$("#sTest").onclick=function(){settings.voice=$("#sVoice").value;settings.rate=parseFloat($("#sRate").value);settings.speak=true;var v=pickVoice();$("#voiceInfo").textContent=v?("Voice: "+v.name):"Koi English voice nahi mili is device par.";speak("Hi, this is Jenny. Can you hear me clearly?","happy",false)};
+$("#btnMem").onclick=openMemory;$("#memDone").onclick=function(){$("#memOv").hidden=true};
+$("#sRate").addEventListener("input",function(){$("#rateV").textContent=Number(this.value).toFixed(2)});
+$("#btnRecap").onclick=function(){if(busy)return;turn("The user asked for a recap of this session. Warmly summarise in 3 to 4 short sentences: what he did well, the top 1 or 2 mistakes to watch (use his recurring mistakes), and one small goal for next time. End with encouragement.","","recap")};
+$("#memWipe").onclick=function(){
+  var b=$("#memWipe");
+  if(!b.dataset.armed){b.dataset.armed="1";b.textContent="Pakka? Dobara dabao to sab mit jayega";return}
+  mem=freshMem();save();$("#chat").innerHTML="";$("#memOv").hidden=true;addSys("Jenny ne sab bhula diya. Naye sire se shuru.");
+};
+document.addEventListener("keydown",function(e){if(e.key==="Escape"){$("#setOv").hidden=true;$("#memOv").hidden=true}});
+
+
+/* ---------- call mode ---------- */
+function fmtTime(ms){var s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")}
+async function startCall(){
+  if(callActive)return;
+  if(!started){$("#startOv").hidden=true;started=true;renderHistory()}
+  callActive=true;callMuted=false;callMicBlocked=false;callStart=Date.now();
+  $("#callOv").hidden=false;$("#capJ").textContent="";$("#capY").textContent="";$("#callNote").textContent="";
+  $("#cbMute").textContent="Mute";$("#cbMute").setAttribute("aria-pressed","false");$("#cbMute").classList.remove("on");
+  $("#callTime").textContent="00:00";
+  clearInterval(callTimer);callTimer=setInterval(function(){$("#callTime").textContent=fmtTime(Date.now()-callStart)},1000);
+  try{if(navigator.wakeLock)wakeLock=await navigator.wakeLock.request("screen")}catch(e){wakeLock=null}
+  var hrs=hoursSince();
+  turn('He is calling you right now on a voice call. Pick up the phone happily, like a girlfriend whose boyfriend just called: a warm hello and one caring question using what you remember'+(hrs===null?' (first time talking: introduce yourself and ask his name)':'')+'. Keep it to one or two short sentences.',"","call");
+}
+function endCall(){
+  if(!callActive)return;
+  var dur=Date.now()-callStart;
+  callActive=false;clearInterval(callTimer);stopListen();stopSpeak();
+  try{wakeLock&&wakeLock.release()}catch(e){};wakeLock=null;
+  $("#callOv").hidden=true;
+  addSys("Call ended. Duration "+fmtTime(dur));
+  mem.lastSeen=Date.now();save();
+}
+function callSendTyped(){
+  var i=$("#callIn"),t=i.value.trim();if(!t)return;
+  i.value="";$("#capY").textContent="You: "+t;
+  if(busy)return;send(t,"typed");
+}
+$("#btnCall").onclick=startCall;
+$("#startCall").onclick=startCall;
+$("#cbEnd").onclick=endCall;
+$("#cbMute").onclick=function(){
+  callMuted=!callMuted;
+  var b=$("#cbMute");b.textContent=callMuted?"Unmute":"Mute";b.setAttribute("aria-pressed",callMuted?"true":"false");b.classList.toggle("on",callMuted);
+  if(callMuted)stopListen();else if(!busy&&!speaking)startListen();
+};
+$("#cbTalk").onclick=function(){stopSpeak();callMuted=false;$("#cbMute").textContent="Mute";$("#cbMute").classList.remove("on");if(listening)stopListen();else startListen()};
+$("#callSend").onclick=callSendTyped;
+$("#callIn").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();callSendTyped()}});
+
+/* ---------- boot ---------- */
+(async function boot(){
+  renderModes();refreshStatus();
+  if(mem.chat.length)renderHistory();
+  await Promise.all([initStore(),initBrain()]);
+  if(mem.chat.length&&!$("#chat").children.length)renderHistory();
+  var n=[];
+  if(!sampleFn&&!settings.key)n.push("PC version ke liye Settings mein API key chahiye.");
+  if(!SR)n.push("Voice input ke liye Chrome ya Edge use karo.");
+  $("#startNote").textContent=n.join(" ");
+})();
+})();
+
+/* ---------- install + auto-update (phone app) ---------- */
+(function(){
+  var dp=null;
+  window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();dp=e;var b=document.getElementById("btnInstall");if(b)b.hidden=false});
+  var b=document.getElementById("btnInstall");
+  if(b)b.onclick=function(){if(!dp)return;dp.prompt();dp.userChoice.finally(function(){dp=null;b.hidden=true})};
+  window.addEventListener("appinstalled",function(){if(b)b.hidden=true});
+  if("serviceWorker" in navigator){
+    var had=!!navigator.serviceWorker.controller, reloaded=false;
+    navigator.serviceWorker.register("sw.js").then(function(r){r.update()}).catch(function(){});
+    navigator.serviceWorker.addEventListener("controllerchange",function(){if(!had||reloaded)return;reloaded=true;location.reload()});
+  }
+})();
+</script>
+
+</body></html>
