@@ -1,0 +1,11 @@
+{
+  "appId": "com.shubham.jenny",
+  "appName": "Jenny",
+  "webDir": "www",
+  "server": {
+    "url": "https://shubhamrathour30.github.io/Jenny/",
+    "cleartext": false,
+    "androidScheme": "https"
+  },
+  "android": { "allowMixedContent": false }
+}

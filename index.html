@@ -1073,6 +1073,7 @@ function liveCleanup(){
   try{livePlay&&livePlay.close()}catch(e){}
   try{livePC&&livePC.forEach(function(p){p.close()})}catch(e){}livePC=null;try{liveAudioEl&&(liveAudioEl.srcObject=null,liveAudioEl.remove())}catch(e){}liveAudioEl=null;liveOut=null;
   try{liveWS&&liveWS.close()}catch(e){}
+  try{if(window.__AR)window.__AR.setEarpiece({on:false})}catch(e){}
   liveProc=liveStream=liveCap=livePlay=liveWS=liveGain=null;liveReady=false;liveSrcs=[];liveNext=0;
   try{wakeLock&&wakeLock.release()}catch(e){};wakeLock=null;
   av("speaking",false);
@@ -1118,6 +1119,7 @@ async function startLive(simple){
     var AC=window.AudioContext||window.webkitAudioContext;
     livePlay=new AC({sampleRate:24000});try{await livePlay.resume()}catch(e){}
     await liveRoute();
+    try{if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&settings.earpiece!==false){window.__AR=window.__AR||Capacitor.registerPlugin("AudioRoute");await window.__AR.setEarpiece({on:true})}}catch(e){}
     liveGain=livePlay.createGain();liveGain.gain.value=(settings.liveVol||0.6);liveGain.connect(liveOut||livePlay.destination);
     $("#liveVol").value=settings.liveVol||0.6;
     $("#liveVol").oninput=function(){var v=parseFloat(this.value);settings.liveVol=v;if(liveGain)liveGain.gain.value=v;lsSave(LS_SET,settings)};
