@@ -511,11 +511,11 @@ async function geminiModels(k){
     var j=await r.json();
     if(r.ok&&j.models){
       out=j.models.filter(function(x){
-        return (x.supportedGenerationMethods||[]).indexOf("generateContent")>=0&&/gemini/.test(x.name)&&/flash/.test(x.name)&&!/(lite|image|tts|live|audio|embed|robot|computer|native|exp|preview-\d{2}-\d{2})/.test(x.name);
+        return (x.supportedGenerationMethods||[]).indexOf("generateContent")>=0&&/gemini/.test(x.name)&&/flash/.test(x.name)&&!/(image|tts|live|audio|embed|robot|computer|native|exp|preview-\d{2}-\d{2})/.test(x.name);
       }).map(function(x){return x.name.replace("models/","")});
       var ver=function(n){var m=n.match(/gemini-(\d+(?:\.\d+)?)/);return m?parseFloat(m[1]):0};
-      out.sort(function(a,b){return ver(b)-ver(a)||(/latest/.test(a)?1:0)-(/latest/.test(b)?1:0)});
-      out=out.slice(0,3);
+      out.sort(function(a,b){return (/lite/.test(a)?1:0)-(/lite/.test(b)?1:0)||ver(b)-ver(a)||(/latest/.test(a)?1:0)-(/latest/.test(b)?1:0)});
+      out=out.slice(0,5);
     }
   }catch(e){}
   if(out.length){try{localStorage.setItem("jenny.gm",JSON.stringify({t:Date.now(),k:k.slice(-8),l:out}))}catch(e){}}
@@ -524,7 +524,10 @@ async function geminiModels(k){
 async function callGemini(k,m,prompt){
   var models=(!m||/^claude|^llama/i.test(m))?await geminiModels(k):[m];
   if(!models.length)models=["gemini-flash-latest","gemini-3.8-flash","gemini-2.5-flash"];
-  var text=String(prompt),errs=[];
+  var text=String(prompt),errs=[],quotaHit=0,tried=0;
+  var ex={};try{ex=JSON.parse(localStorage.getItem("jenny.ex")||"{}")}catch(e){}
+  var live=models.filter(function(n){return !(ex[n]&&ex[n]>Date.now())});
+  if(live.length)models=live;
   var variants=[
     {maxOutputTokens:1500,temperature:0.9,responseMimeType:"application/json",thinkingConfig:{thinkingBudget:0}},
     {maxOutputTokens:1500,temperature:0.9,responseMimeType:"application/json"},
@@ -539,7 +542,11 @@ async function callGemini(k,m,prompt){
         if(!res.ok){
           var msg=(j.error&&j.error.message)||("API error "+res.status);
           errs.push(models[mi]+": "+msg);
-          if(res.status===429||/quota|rate|exhaust/i.test(msg))throw new Error(msg);
+          if(res.status===429||/quota|rate.?limit|exhaust/i.test(msg)){
+            quotaHit++;ex[models[mi]]=Date.now()+(/per.?minute|retry in \d+(\.\d+)?s\b/i.test(msg)?90e3:3600e3);
+            try{localStorage.setItem("jenny.ex",JSON.stringify(ex))}catch(e){}
+            break;
+          }
           if(res.status===401||res.status===403||/api key/i.test(msg))throw new Error(msg);
           continue;
         }
@@ -549,11 +556,12 @@ async function callGemini(k,m,prompt){
         errs.push(models[mi]+": khali jawab"+(cand&&cand.finishReason?" ("+cand.finishReason+")":""));
       }catch(e){
         if(e&&e.name==="AbortError")errs.push(models[mi]+": jawab nahi aaya (net slow)");
-        else if(/quota|rate|exhaust|api key|permission|denied/i.test(e.message||""))throw e;
+        else if(/api key|permission|denied/i.test(e.message||""))throw e;
         else errs.push(models[mi]+": "+(e.message||e));
       }
     }
   }
+  if(quotaHit&&quotaHit>=models.length)throw new Error("QUOTA");
   var uniq=[];errs.forEach(function(x){if(uniq.indexOf(x)<0)uniq.push(x)});
   throw new Error(uniq.slice(0,2).join(" | ")||"Gemini se jawab nahi mila");
 }
@@ -588,7 +596,7 @@ async function callBrain(prompt){
     for(var i=0;i<keys.length;i++){
       var idx=(start+i)%keys.length;
       try{var out=await callOne(keys[idx],prompt);window.__ki=idx;return out}
-      catch(e){last=e;if(!/quota|rate|limit|exhaust|429|resource|overload|busy|unavailable/i.test(e.message||""))throw e}
+      catch(e){last=e;if(!/QUOTA|quota|rate|limit|exhaust|429|resource|overload|busy|unavailable/i.test(e.message||""))throw e}
     }
     throw last;
   }
@@ -621,7 +629,9 @@ async function turn(event,userText,src){
     applyResult(out,userText);
   }catch(e){
     typing.remove();
-    if(e.message==="no_brain")addSys("Jenny ka dimaag abhi connect nahi hai. Upar Settings kholo aur apni AI key ek baar paste karke Save karo. Free key: aistudio.google.com/apikey (Gemini).");
+    if(e.message==="QUOTA"||/^QUOTA/.test(e.message||""))window.__bd=Date.now()+30*60e3;
+    if(e.message==="QUOTA"||/^QUOTA/.test(e.message||""))addSys("Aaj ki free limit khatam ho gayi (Gemini free mein roz bahut kam messages milte hain). Settings mein ek Groq free key bhi jod do (console.groq.com/keys, gsk_... wali), comma lagakar: AIza...,gsk_... Phir Jenny dono se chalegi.");
+    else if(e.message==="no_brain")addSys("Jenny ka dimaag abhi connect nahi hai. Upar Settings kholo aur apni AI key ek baar paste karke Save karo. Free key: aistudio.google.com/apikey (Gemini).");
     else if(e&&e.code==="not_granted")addSys("Jenny ko Claude use karne ki permission chahiye. Page dobara kholkar Allow dabao.");
     else if(e&&e.code==="rate_limited")addSys("Thoda ruko, bahut jaldi-jaldi ho gaya. Kuch second baad phir bolo.");
     else addSys("Kuch gadbad ho gayi: "+(e&&e.message?e.message:"unknown")+". Phir koshish karo.");
@@ -846,7 +856,7 @@ document.getElementById("sKeyTest").onclick=async function(){
     box.style.color="#6ee7a8";box.textContent="Key chal rahi hai! Jawab aaya: "+String(r).slice(0,80);
   }catch(e){
     box.style.color="#ff9aa8";
-    box.textContent=e.message==="no_brain"?"Pehle upar key paste karo.":"Key error: "+(e.message||e);
+    box.textContent=e.message==="no_brain"?"Pehle upar key paste karo.":(e.message==="QUOTA"?"Key sahi hai, par aaj ki free limit khatam. Groq key bhi jodo ya kal try karo.":"Key error: "+(e.message||e));
   }
 };
 
@@ -894,7 +904,7 @@ send=function(text,src){
 // periodic tick: nudges when chat is quiet, check-ins during a call
 setInterval(function(){
   var now=Date.now();
-  if(document.hidden||!started||ringing)return;
+  if(document.hidden||!started||ringing||(window.__bd||0)>now)return;
   if(callActive){
     if(busy||speaking)return;
     var since=now-lastAct;
