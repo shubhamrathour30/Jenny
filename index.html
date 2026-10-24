@@ -336,7 +336,7 @@ var voiceWarned=false;
 function speak(text,emotion,slow){
   return new Promise(function(done){
     if(!settings.speak){done();return}
-    if(!window.speechSynthesis){if(!voiceWarned){voiceWarned=true;toast("Is browser mein Jenny ki awaaz (text-to-speech) nahi hai. Chrome ya Edge use karo.")}done();return}
+    if(!window.speechSynthesis){if(!voiceWarned){voiceWarned=true;toast("Chat mein awaaz nahi aati. Jenny se bolke baat karne ke liye upar Call dabao.")}done();return}
     stopSpeak();
     var parts=text.replace(/\s+/g," ").match(/[^.!?]+[.!?]*/g)||[text];
     var e=EMO[emotion]||EMO.calm, i=0, finished=false;
@@ -381,7 +381,7 @@ function setSpeaking(on){speaking=on;av("speaking",on);refreshStatus()}
 var callBuf="",callHold=null;
 function setListening(on){listening=on;av("listening",on);$("#mic").classList.toggle("on",on);refreshStatus()}
 function startListen(){
-  if(!SR){toast("Is browser mein voice input nahi hai. Chrome ya Edge use karo, ya Win+H se bolkar type karo.");return}
+  if(!SR){if(liveAvailable()){startCallAny();return}toast("Is browser mein voice input nahi hai. Chrome ya Edge use karo, ya Win+H se bolkar type karo.");return}
   if(listening||busy) return;
   stopSpeak(); recErr=false;
   var finalT="";
@@ -866,7 +866,7 @@ $("#startBtn").onclick=async function(){
 $("#send").onclick=function(){send($("#input").value,"typed")};
 $("#input").addEventListener("keydown",function(e){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send($("#input").value,"typed")}});
 $("#input").addEventListener("input",autosize);
-$("#mic").onclick=function(){if(listening)stopListen();else startListen()};
+$("#mic").onclick=function(){if(!SR&&!window.speechSynthesis&&liveAvailable()){startCallAny();return}if(listening)stopListen();else startListen()};
 $("#btnSet").onclick=openSettings;$("#setDone").onclick=closeSettings;
 $("#sTest").onclick=function(){settings.voice=$("#sVoice").value;settings.rate=parseFloat($("#sRate").value);settings.speak=true;var v=pickVoice();$("#voiceInfo").textContent=v?("Voice: "+v.name):"Koi English voice nahi mili is device par.";speak("Hi, this is Jenny. Can you hear me clearly?","happy",false)};
 $("#btnMem").onclick=openMemory;$("#memDone").onclick=function(){$("#memOv").hidden=true};
