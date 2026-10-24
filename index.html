@@ -216,8 +216,8 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
     <label class="check"><input type="checkbox" id="sAuto"> Jenny bolke chup ho to mic apne aap on ho</label>
     <label class="check"><input type="checkbox" id="sSpeak"> Jenny ki awaaz on</label>
     <div id="keyBox" hidden>
-      <div class="field"><label for="sKey">Anthropic API key (sirf PC wale version ke liye)</label><input id="sKey" type="password" placeholder="sk-ant-..." autocomplete="off"></div>
-      <div class="field"><label for="sModel">Model</label><input id="sModel"></div>
+      <div class="field"><label for="sKey">AI key: FREE Google Gemini key (AIza...) ya Groq (gsk_...) ya Anthropic (sk-ant-...)</label><input id="sKey" type="password" placeholder="AIza... / gsk_... / sk-ant-..." autocomplete="off"></div>
+      <div class="field"><label for="sModel">Model (khali chhod do, auto chunega)</label><input id="sModel" placeholder="auto"></div>
     </div>
     <button class="big" id="setDone">Done</button>
   </div>
@@ -476,9 +476,28 @@ async function callBrain(prompt){
     return r.text;
   }
   if(settings.key){
-    var res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":settings.key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:settings.model||"claude-sonnet-5-5",max_tokens:800,messages:[{role:"user",content:prompt}]})});
-    var j=await res.json();
+    var k=settings.key, m=settings.model||"", res, j;
+    if(/^AIza/.test(k)){
+      if(!m||/^claude|^llama/i.test(m))m="gemini-2.5-flash";
+      res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(m)+":generateContent?key="+encodeURIComponent(k),{method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:900,temperature:0.9,responseMimeType:"application/json"}})});
+      j=await res.json();
+      if(!res.ok)throw new Error((j.error&&j.error.message)||"API error "+res.status);
+      var cand=j.candidates&&j.candidates[0];
+      return ((cand&&cand.content&&cand.content.parts)||[]).map(function(p){return p.text||""}).join("");
+    }
+    if(/^gsk_/.test(k)){
+      if(!m||/^claude|^gemini/i.test(m))m="llama-3.3-70b-versatile";
+      res=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+k},
+        body:JSON.stringify({model:m,max_tokens:900,temperature:0.9,response_format:{type:"json_object"},messages:[{role:"user",content:prompt}]})});
+      j=await res.json();
+      if(!res.ok)throw new Error((j.error&&j.error.message)||"API error "+res.status);
+      return j.choices[0].message.content;
+    }
+    if(!m||/^gemini|^llama/i.test(m))m="claude-sonnet-5-5";
+    res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":k,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:m,max_tokens:800,messages:[{role:"user",content:prompt}]})});
+    j=await res.json();
     if(!res.ok)throw new Error((j.error&&j.error.message)||"API error "+res.status);
     return j.content.map(function(c){return c.text||""}).join("");
   }
@@ -511,7 +530,7 @@ async function turn(event,userText,src){
     applyResult(out,userText);
   }catch(e){
     typing.remove();
-    if(e.message==="no_brain")addSys("Jenny ka dimaag abhi connect nahi hai. Upar Settings kholo aur apni Anthropic API key (sk-ant-...) ek baar paste karke Save karo.");
+    if(e.message==="no_brain")addSys("Jenny ka dimaag abhi connect nahi hai. Upar Settings kholo aur apni AI key ek baar paste karke Save karo. Free key: aistudio.google.com/apikey (Gemini).");
     else if(e&&e.code==="not_granted")addSys("Jenny ko Claude use karne ki permission chahiye. Page dobara kholkar Allow dabao.");
     else if(e&&e.code==="rate_limited")addSys("Thoda ruko, bahut jaldi-jaldi ho gaya. Kuch second baad phir bolo.");
     else addSys("Kuch gadbad ho gayi: "+(e&&e.message?e.message:"unknown")+". Phir koshish karo.");
@@ -643,13 +662,13 @@ function openSettings(){
   $("#sName").value=settings.name||mem.name||"";$("#sLevel").value=settings.level;
   $("#sRate").value=settings.rate;$("#rateV").textContent=Number(settings.rate).toFixed(2);
   $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;
-  $("#keyBox").hidden=!!sampleFn;$("#sKey").value=settings.key||"";$("#sModel").value=settings.model||"claude-sonnet-5-5";
+  $("#keyBox").hidden=!!sampleFn;$("#sKey").value=settings.key||"";$("#sModel").value=settings.model||"";
   fillVoiceSelect();$("#setOv").hidden=false;
 }
 function closeSettings(){
   settings.name=$("#sName").value.trim();settings.level=$("#sLevel").value;settings.voice=$("#sVoice").value;
   settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;
-  if(!sampleFn){settings.key=$("#sKey").value.trim();settings.model=$("#sModel").value.trim()||"claude-sonnet-5-5"}
+  if(!sampleFn){settings.key=$("#sKey").value.trim();settings.model=$("#sModel").value.trim()}
   if(settings.name)mem.name=settings.name;
   lsSave(LS_SET,settings);save();$("#setOv").hidden=true;
 }
