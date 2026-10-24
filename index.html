@@ -1039,7 +1039,7 @@ async function liveRemember(log){
     save();
   }catch(e){}
 }
-async function startLive(){
+async function startLive(simple){
   if(liveOn||callActive)return;
   liveOn=true;liveEnded=false;liveReady=false;liveMuted=false;liveJ="";liveY="";liveLog=[];liveStart=Date.now();
   if(!started){$("#startOv").hidden=true;started=true;renderHistory()}
@@ -1063,10 +1063,12 @@ async function startLive(){
     await new Promise(function(resolve,reject){
       var done=false,to=setTimeout(function(){if(!done){done=true;reject(new Error("Connect hone mein bahut der lagi"))}},15000);
       ws.onopen=function(){
-        ws.send(JSON.stringify({setup:{model:"models/"+model,
+        var setupMsg={setup:{model:"models/"+model,
           generationConfig:{responseModalities:["AUDIO"],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:"Aoede"}}}},
           systemInstruction:{parts:[{text:liveSystem()}]},
-          inputAudioTranscription:{},outputAudioTranscription:{}}}));
+          inputAudioTranscription:{},outputAudioTranscription:{}}};
+        if(!simple)setupMsg.setup.realtimeInputConfig={automaticActivityDetection:{startOfSpeechSensitivity:"START_SENSITIVITY_HIGH",endOfSpeechSensitivity:"END_SENSITIVITY_HIGH",prefixPaddingMs:20,silenceDurationMs:350}};
+        ws.send(JSON.stringify(setupMsg));
       };
       ws.onerror=function(){if(!done){done=true;clearTimeout(to);reject(new Error("Network error"))}};
       ws.onclose=function(ev){
@@ -1082,7 +1084,7 @@ async function startLive(){
     });
     // mic streaming
     var srcN=liveCap.createMediaStreamSource(liveStream);
-    liveProc=liveCap.createScriptProcessor(2048,1,1);
+    liveProc=liveCap.createScriptProcessor(1024,1,1);
     liveProc.onaudioprocess=function(e){
       if(!liveReady||liveMuted||!liveWS||liveWS.readyState!==1)return;
       liveWS.send(JSON.stringify({realtimeInput:{audio:{data:pcmB64(e.inputBuffer.getChannelData(0)),mimeType:"audio/pcm;rate=16000"}}}));
@@ -1095,6 +1097,7 @@ async function startLive(){
   }catch(e){
     var why=(e&&e.name==="NotAllowedError")?"Mic ki permission nahi mili":(e&&e.message)||String(e);
     liveCleanup();liveOn=false;$("#callOv").hidden=true;
+    if(!simple&&/1007|invalid|unknown|unsupported|not supported|argument/i.test(why)){startLive(true);return}
     addSys("Live voice call nahi chali ("+why+"). Purani call mode chalu kar rahi hoon.");
     startCall();
   }
