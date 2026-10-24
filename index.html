@@ -216,7 +216,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
     <label class="check"><input type="checkbox" id="sAuto"> Jenny bolke chup ho to mic apne aap on ho</label>
     <label class="check"><input type="checkbox" id="sSpeak"> Jenny ki awaaz on</label>
     <div id="keyBox" hidden>
-      <div class="field"><label for="sKey">AI keys (ek ya zyada, comma se alag): Gemini AIza... / Groq gsk_... / Anthropic sk-ant-...</label><input id="sKey" type="password" placeholder="AIza... / gsk_... / sk-ant-..." autocomplete="off"></div>
+      <div class="field"><label for="sKey">AI keys (ek ya zyada, comma se alag): Gemini AIza... ya AQ.... / Groq gsk_... / Anthropic sk-ant-...</label><input id="sKey" type="password" placeholder="AIza... / gsk_... / sk-ant-..." autocomplete="off"></div>
       <div class="field"><label for="sModel">Model (khali chhod do, auto chunega)</label><input id="sModel" placeholder="auto"></div>
     </div>
     <button class="big" id="setDone">Done</button>
@@ -481,7 +481,7 @@ event,
 }
 async function callOne(k){
     var m=settings.model||"", res, j;
-    if(/^AIza/.test(k)){
+    if(/^(AIza|AQ\.)/.test(k)){
       if(!m||/^claude|^llama/i.test(m))m="gemini-2.5-flash";
       res=await fetch("https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(m)+":generateContent?key="+encodeURIComponent(k),{method:"POST",headers:{"content-type":"application/json"},
         body:JSON.stringify({contents:[{role:"user",parts:[{text:prompt}]}],generationConfig:{maxOutputTokens:900,temperature:0.9,responseMimeType:"application/json"}})});
