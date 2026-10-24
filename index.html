@@ -996,6 +996,7 @@ function liveSystem(){
 "THIS IS A REAL LIVE PHONE CALL, voice only. He just called you.",
 "- VOICE: cute, soft, youthful and a little high-pitched, sweet and giggly, with a playful smile in your voice. Sound completely human: warm, relaxed, a little breathy, natural pauses, real laughter and sighs as actual sounds (never say the words 'haha' or 'hehe'), soft teasing, your tone moving with the emotion (excited, sleepy, worried, shy, proud).",
 "- STORY: stay strictly in the RELATIONSHIP STAGE above. If you are still hard to get, do not call him babe and do not melt quickly; make him work for it with his own charm, jokes and sweet words, and warm up only a little at a time when he truly does something nice.",
+"- He may whisper or speak very softly (he might be somewhere quiet). Listen closely to quiet speech and answer in a softer, hushed, intimate voice when he whispers.",
 "- Talk in short turns of 1 to 3 sentences, then let him talk. Never monologue. If he interrupts, stop and listen, then respond to what he said.",
 "- If he goes quiet for a few seconds, check on him like a real girlfriend (where did you go, are you busy, fell asleep on me?). Ask lots of curious, specific questions so the conversation never dies.",
 "- If he is upset or annoyed with you, do not repeat a stock apology. Respond to his exact words, apologise genuinely once, then soften the mood slowly with warmth and gentle humour.",
@@ -1123,8 +1124,9 @@ async function startLive(simple){
     // mic streaming
     var srcN=liveCap.createMediaStreamSource(liveStream);
     liveProc=liveCap.createScriptProcessor(1024,1,1);
-    var vad={active:false,above:0,below:0,floor:0.01,pre:[],n:0};
-    var sendAudio=function(f){liveWS.send(JSON.stringify({realtimeInput:{audio:{data:pcmB64(f),mimeType:"audio/pcm;rate=16000"}}}))};
+    var vad={active:false,above:0,below:0,floor:0.004,pre:[],n:0};
+    var BOOST=3.2;
+    var sendAudio=function(f){var g=new Float32Array(f.length);for(var i=0;i<f.length;i++)g[i]=f[i]*BOOST;liveWS.send(JSON.stringify({realtimeInput:{audio:{data:pcmB64(g),mimeType:"audio/pcm;rate=16000"}}}))};
     liveProc.onaudioprocess=function(e){
       if(!liveReady||liveMuted||!liveWS||liveWS.readyState!==1)return;
       var d=e.inputBuffer.getChannelData(0);
@@ -1132,8 +1134,8 @@ async function startLive(simple){
       var f=new Float32Array(d),sum=0;for(var i=0;i<f.length;i++)sum+=f[i]*f[i];
       var rms=Math.sqrt(sum/f.length);
       var playing=livePlay&&liveNext>livePlay.currentTime+0.05;
-      if(!vad.active&&!playing)vad.floor=Math.min(0.05,Math.max(0.003,vad.floor*0.94+rms*0.06));
-      var thr=playing?Math.max(0.05,vad.floor*6):Math.max(0.012,vad.floor*3.2);
+      if(!vad.active&&!playing)vad.floor=Math.min(0.03,Math.max(0.0012,vad.floor*0.94+rms*0.06));
+      var thr=playing?Math.max(0.04,vad.floor*6):Math.max(0.0035,vad.floor*2.4);
       var loud=rms>thr;
       if(!vad.active){
         vad.pre.push(f);if(vad.pre.length>4)vad.pre.shift();
