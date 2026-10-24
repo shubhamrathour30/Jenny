@@ -496,6 +496,11 @@ event,
   ];
   return p.join("\n");
 }
+function tfetch(u,o,ms){
+  var ac=new AbortController(),t=setTimeout(function(){ac.abort()},ms||20000);
+  o=o||{};o.signal=ac.signal;
+  return fetch(u,o).finally(function(){clearTimeout(t)});
+}
 async function callOne(k,prompt){
     var m=settings.model||"", res, j;
     if(/^(AIza|AQ\.)/.test(k)){
@@ -507,18 +512,18 @@ async function callOne(k,prompt){
         var gm=gmodels[mi];
         var urls=["https://generativelanguage.googleapis.com/v1beta/models/"+encodeURIComponent(gm)+":generateContent",
                   "https://aiplatform.googleapis.com/v1/publishers/google/models/"+encodeURIComponent(gm)+":generateContent"];
-        if(/^AQ\./.test(k))urls.reverse();
+        
         for(var ui=0;ui<urls.length;ui++){
           try{
-            res=await fetch(urls[ui],{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":k},body:gbody});
+            res=await tfetch(urls[ui],{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":k},body:gbody});
             j=await res.json();
-            if(!res.ok&&/thinking/i.test((j.error&&j.error.message)||"")){res=await fetch(urls[ui],{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":k},body:gbody2});j=await res.json()}
+            if(!res.ok&&/thinking/i.test((j.error&&j.error.message)||"")){res=await tfetch(urls[ui],{method:"POST",headers:{"content-type":"application/json","x-goog-api-key":k},body:gbody2});j=await res.json()}
             if(!res.ok){gerr=new Error((j.error&&j.error.message)||"API error "+res.status);continue}
             var cand=j.candidates&&j.candidates[0];
             var gt=((cand&&cand.content&&cand.content.parts)||[]).map(function(p){return p.text||""}).join("");
             if(gt)return gt;
             gerr=new Error("Gemini ne khali jawab diya"+(cand&&cand.finishReason?" ("+cand.finishReason+")":""));
-          }catch(e){gerr=e}
+          }catch(e){gerr=(e&&e.name==="AbortError")?new Error("Google se jawab nahi aaya (net slow ya band). Dobara try karo."):e}
         }
         if(gerr&&/quota|rate|exhaust|429/i.test(gerr.message||""))break;
       }
@@ -526,14 +531,14 @@ async function callOne(k,prompt){
     }
     if(/^gsk_/.test(k)){
       if(!m||/^claude|^gemini/i.test(m))m="llama-3.3-70b-versatile";
-      res=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+k},
+      res=await tfetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+k},
         body:JSON.stringify({model:m,max_tokens:900,temperature:0.9,response_format:{type:"json_object"},messages:[{role:"user",content:prompt}]})});
       j=await res.json();
       if(!res.ok)throw new Error((j.error&&j.error.message)||"API error "+res.status);
       return j.choices[0].message.content;
     }
     if(!m||/^gemini|^llama/i.test(m))m="claude-sonnet-5-5";
-    res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":k,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    res=await tfetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":k,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
       body:JSON.stringify({model:m,max_tokens:800,messages:[{role:"user",content:prompt}]})});
     j=await res.json();
     if(!res.ok)throw new Error((j.error&&j.error.message)||"API error "+res.status);
@@ -577,7 +582,7 @@ async function turn(event,userText,src){
   busy=true;setThinking(true);
   var typing=addTyping();
   try{
-    var raw=await callBrain(buildPrompt(event));
+    var raw=await Promise.race([callBrain(buildPrompt(event)),new Promise(function(_,rj){setTimeout(function(){rj(new Error("Jenny ka jawab bahut der se aa raha hai. Net check karo aur phir bolo."))},60000)})]);
     var out=parseJSON(raw);
     typing.remove();
     applyResult(out,userText);
