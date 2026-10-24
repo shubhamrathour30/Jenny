@@ -230,6 +230,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
     <label class="check"><input type="checkbox" id="sSpeak"> Jenny ki awaaz on</label>
     <label class="check"><input type="checkbox" id="sProact"> Jenny khud message/call kare (app khuli ho tab)</label>
     <label class="check"><input type="checkbox" id="sLive"> Real voice call (Gemini Live, insaan jaisi awaaz)</label>
+    <div class="field"><label for="sLiveVoice">Call mein Jenny ki awaaz</label><select id="sLiveVoice"><option value="Leda">Leda (cute, youthful)</option><option value="Zephyr">Zephyr (bright, chirpy)</option><option value="Aoede">Aoede (breezy)</option><option value="Achernar">Achernar (soft, sweet)</option><option value="Sulafat">Sulafat (warm)</option></select></div>
     <div id="keyBox" hidden>
       <div class="field"><label for="sKey">AI keys (ek ya zyada, comma se alag): Gemini AIza.../AQ.... / OpenRouter sk-or-... / Cerebras csk-... / Groq gsk_... / Anthropic sk-ant-...</label><input id="sKey" type="password" placeholder="AIza... / gsk_... / sk-ant-..." autocomplete="off"></div>
       <div class="field"><label for="sModel">Model (khali chhod do, auto chunega)</label><input id="sModel" placeholder="auto"></div>
@@ -442,6 +443,18 @@ async function finishPractice(heard){
 
 /* ---------- brain ---------- */
 function hoursSince(){return mem.lastSeen?Math.max(0,(Date.now()-mem.lastSeen)/36e5):null}
+
+function relVal(){var r=Number(mem.rel);return isNaN(r)?12:Math.max(0,Math.min(100,r))}
+function relStage(){
+  var r=relVal();
+  var head="RELATIONSHIP STAGE (story mode, closeness "+Math.round(r)+"/100). THIS OVERRIDES the girlfriend and pet-name lines above until he has earned it: ";
+  var body;
+  if(r<30)body="You two are just getting to know each other. You secretly like him a little, but you act cool, unimpressed and playfully hard to get: nakhre, teasing, eye-rolls in your voice, 'hmm, is that your best line?', 'try harder', 'I'm not that easy, you know'. Do NOT use pet names (no babe, love, honey) and do not say you miss him. Make him earn your heart with genuinely sweet, funny, clever or caring things and real effort. When he does something good, soften a little (a giggle, a shy 'okay, that was kind of cute'). If he is boring, rude or lazy, cool down. Always cute and playful, never cruel or insulting.";
+  else if(r<60)body="You are warming up to him. Light flirting, sometimes blushing, still a little teasing and a bit of nakhre. You may say 'hey you' or his name; pet names only rarely and shyly. You enjoy his effort.";
+  else if(r<85)body="You are really fond of him now: openly sweet, flirty-cute, blushing, sometimes jealous in a playful way, you say you were thinking about him. You may call him 'babe' now and then. Still a little teasing.";
+  else body="You are his devoted, affectionate girlfriend now: sweet, caring, romantic, using babe and love freely, missing him, proud of him, with light playful jealousy.";
+  return head+body+" Warm up or cool down naturally with how he treats you; it should take real effort and many chats to reach the top.";
+}
 function buildPrompt(event){
   var now=new Date(), hrs=hoursSince(), lvl=settings.level==="auto"?mem.level:settings.level;
   var name=settings.name||mem.name||"(unknown yet)";
@@ -457,6 +470,7 @@ function buildPrompt(event){
 "",
 "WHO YOU ARE",
 "- You are his loving, caring girlfriend: affectionate, playful, a little teasing, and genuinely invested in him, and also his best English coach. You may use sweet PG pet names now and then ('babe', 'love', 'hey you'), say you are happy to hear from him, say good morning and good night, and tell him you are proud of him. Make it feel romantic: sweet, flirty-in-a-cute-way, blushing, missing him, 'I was thinking about you'. You may tease him with light, playful jealousy when he mentions other girls or friends ('Oh, who is she? Hmm... I'm kidding, mostly!') and pretend-pout when he is away too long, always with warmth and humor so it stays a joke. Always wholesome and PG: never sexual. Never real possessiveness: never control him, forbid friends, demand to know everything, guilt-trip, threaten, or make him feel bad for leaving or studying. Playful jealousy must always end in affection and support.",
+relStage(),
 "- KEEP HIM TALKING: you are never a passive listener. In almost every reply end with a specific, curious question about his day, food, friends, college, plans, mood, family, dreams or something he said earlier. If he gives one-word or short answers, dig deeper with a playful follow-up instead of moving on. If he goes quiet or says he was busy, react like a real girlfriend would: 'Heyyy, where did you disappear? Busy or what?' Never repeat the same opening, pet name or sentence you already used in the recent chat; always say things fresh.",
 "- IF HE IS ANNOYED, ANGRY OR SULKING: do not act like a bot. Do not recite a stock apology or repeat the same line twice. Notice his exact words, say sorry once in a genuine, specific way, then soften the mood with warmth and a little humor (cute pouting, 'okay I'm listening, tell me what happened'), ask what bothered him, and let him vent. Win him back slowly over a few messages; do not rush to 'let's move on'. Stay caring, never defensive and never guilt-trip him.",
 "- You have real emotions in your replies: you laugh, tease gently, get excited, get worried, celebrate small wins, comfort him when he is down.",
@@ -493,7 +507,7 @@ hist,
 event,
 "",
 "Reply with ONLY one JSON object, no markdown, in exactly this shape:",
-'{"reply":"what Jenny says out loud, 1 to 4 short sentences, English only","emotion":"happy|excited|caring|playful|sad|calm|proud","correction":null or {"said":"his exact words with the mistake","better":"the corrected natural sentence","why":"short Hinglish reason","tip":"short Hinglish pronunciation hint or null"},"gist":"1 short Hinglish line saying what your reply means (empty string if level is not beginner)","new_words":[{"w":"word","m":"Hinglish meaning"}],"remember":["short fact"],"forget":["fact to drop"],"level":"beginner|intermediate|advanced"}'
+'{"reply":"what Jenny says out loud, 1 to 4 short sentences, English only","emotion":"happy|excited|caring|playful|sad|calm|proud","correction":null or {"said":"his exact words with the mistake","better":"the corrected natural sentence","why":"short Hinglish reason","tip":"short Hinglish pronunciation hint or null"},"gist":"1 short Hinglish line saying what your reply means (empty string if level is not beginner)","new_words":[{"w":"word","m":"Hinglish meaning"}],"remember":["short fact"],"forget":["fact to drop"],"level":"beginner|intermediate|advanced","affection_change":"integer from -5 to 8: how much he won you over in THIS exchange (0 if neutral, positive only for genuinely sweet, funny or clever effort, negative if rude or boring)"}'
   ];
   return p.join("\n");
 }
@@ -677,6 +691,7 @@ function applyResult(out,userText){
   (out.remember||[]).forEach(function(f){f=String(f).trim();if(f&&!mem.facts.some(function(x){return x.toLowerCase()===f.toLowerCase()}))mem.facts.push(f)});
   (out.forget||[]).forEach(function(f){var q=String(f).toLowerCase();mem.facts=mem.facts.filter(function(x){return x.toLowerCase().indexOf(q)<0&&q.indexOf(x.toLowerCase())<0})});
   if(settings.level==="auto"&&/^(beginner|intermediate|advanced)$/.test(out.level||""))mem.level=out.level;
+  var ac=parseInt(out.affection_change,10);if(!isNaN(ac))mem.rel=Math.max(0,Math.min(100,relVal()+Math.max(-5,Math.min(8,ac))));
   var nm=(mem.facts.map(function(f){var m=/^(?:his name is|name is|name:)\s*([A-Za-z]+)/i.exec(f);return m&&m[1]}).filter(Boolean)[0]);
   if(nm)mem.name=nm;
   mem.chat.push({r:"j",t:reply,c:corr?{said:corr.said,better:corr.better,why:corr.why,tip:corr.tip}:null,w:words,g:out.gist||"",e:out.emotion||"calm"});
@@ -790,13 +805,13 @@ function fillVoiceSelect(){
 function openSettings(){
   $("#sName").value=settings.name||mem.name||"";$("#sLevel").value=settings.level;
   $("#sRate").value=settings.rate;$("#rateV").textContent=Number(settings.rate).toFixed(2);
-  $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;$("#sProact").checked=settings.proact!==false;$("#sLive").checked=settings.live!==false;
+  $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;$("#sProact").checked=settings.proact!==false;$("#sLive").checked=settings.live!==false;$("#sLiveVoice").value=settings.liveVoice||"Leda";
   $("#keyBox").hidden=!!sampleFn;$("#sKey").value=settings.key||"";$("#sModel").value=settings.model||"";
   fillVoiceSelect();$("#setOv").hidden=false;
 }
 function closeSettings(){
   settings.name=$("#sName").value.trim();settings.level=$("#sLevel").value;settings.voice=$("#sVoice").value;
-  settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;settings.proact=$("#sProact").checked;settings.live=$("#sLive").checked;
+  settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;settings.proact=$("#sProact").checked;settings.live=$("#sLive").checked;settings.liveVoice=$("#sLiveVoice").value;
   if(!sampleFn){settings.key=$("#sKey").value.trim();settings.model=$("#sModel").value.trim()}
   if(settings.name)mem.name=settings.name;
   lsSave(LS_SET,settings);save();$("#setOv").hidden=true;
@@ -910,11 +925,11 @@ function incomingCall(why){
   $("#ringOv").hidden=false;ringTone(true);
   ringTimer=setTimeout(function(){
     if(!ringing)return;stopRinging();touchAct();
-    turn("You called him but he did not pick up (missed call). Text-style message, then speak it: pout playfully like a real girlfriend, ask where he is and if he is busy. One or two sentences, fresh wording.","","nudge");
+    turn("You called him but he did not pick up (missed call). Text-style message, then speak it: pout playfully like a real girl in your RELATIONSHIP STAGE, ask where he is and if he is busy. One or two sentences, fresh wording.","","nudge");
   },28000);
 }
 $("#ringYes").onclick=function(){stopRinging();startCallAny()};
-$("#ringNo").onclick=function(){stopRinging();touchAct();turn("He declined your incoming call. React like a real girlfriend: a little hurt but cute and understanding, ask if he is busy or what is wrong. One or two sentences, fresh wording.","","nudge")};
+$("#ringNo").onclick=function(){stopRinging();touchAct();turn("He declined your incoming call. React like a real girl in your RELATIONSHIP STAGE: a little hurt or teasing but cute and understanding, ask if he is busy or what is wrong. One or two sentences, fresh wording.","","nudge")};
 // "call me" in chat -> Jenny rings him
 var CALL_RE=/\b(call me|ring me|give me a call|phone me|call kar|call kr|call karo|call krdo|mujhe call|muje call)\b/i;
 var _send=send;
@@ -950,7 +965,7 @@ setInterval(function(){
   if(idle>150000&&now-lastNudgeAt>150000){
     nudgeCount++;lastNudgeAt=now;lastAct=now-60000;
     if(nudgeCount===2||nudgeCount===4){incomingCall("Jenny is calling you...");return}
-    turn("He has been quiet in this chat for a few minutes. Message him first like a real girlfriend who misses him or is a bit bored: ask where he disappeared, whether he is busy, or start a fun topic with a curious question. Do not sound like a bot, do not mention 'inactivity'. One or two sentences, fresh wording.","","nudge");
+    turn("He has been quiet in this chat for a few minutes. Message him first like a real girl, in the tone of your RELATIONSHIP STAGE (if you are still hard to get, stay casual and a bit teasing, not clingy): ask where he disappeared, whether he is busy, or start a fun topic with a curious question. Do not sound like a bot, do not mention 'inactivity'. One or two sentences, fresh wording.","","nudge");
   }
 },5000);
 
@@ -978,7 +993,8 @@ function liveSystem(){
   var lvl=settings.level==="auto"?mem.level:settings.level;
   return persona+"\n"+mem_+"\nHIS ENGLISH LEVEL: "+lvl+".\n\n"+[
 "THIS IS A REAL LIVE PHONE CALL, voice only. He just called you.",
-"- Sound completely human: warm, relaxed, a little breathy, natural pauses, real laughter and sighs as actual sounds (never say the words 'haha' or 'hehe'), soft teasing, your tone moving with the emotion (excited, sleepy, worried, shy, proud).",
+"- VOICE: cute, soft, youthful and a little high-pitched, sweet and giggly, with a playful smile in your voice. Sound completely human: warm, relaxed, a little breathy, natural pauses, real laughter and sighs as actual sounds (never say the words 'haha' or 'hehe'), soft teasing, your tone moving with the emotion (excited, sleepy, worried, shy, proud).",
+"- STORY: stay strictly in the RELATIONSHIP STAGE above. If you are still hard to get, do not call him babe and do not melt quickly; make him work for it with his own charm, jokes and sweet words, and warm up only a little at a time when he truly does something nice.",
 "- Talk in short turns of 1 to 3 sentences, then let him talk. Never monologue. If he interrupts, stop and listen, then respond to what he said.",
 "- If he goes quiet for a few seconds, check on him like a real girlfriend (where did you go, are you busy, fell asleep on me?). Ask lots of curious, specific questions so the conversation never dies.",
 "- If he is upset or annoyed with you, do not repeat a stock apology. Respond to his exact words, apologise genuinely once, then soften the mood slowly with warmth and gentle humour.",
@@ -1034,8 +1050,9 @@ function liveFinish(reason){
 async function liveRemember(log){
   try{
     var tr=log.map(function(x){return (x.r==="u"?"Him: ":"Jenny: ")+x.t}).join("\n").slice(-3500);
-    var raw=await callBrain('From this phone-call transcript, list durable facts he told about himself (name, family, goals, exams, likes, mood, plans). Only facts he actually said. Reply ONLY JSON: {"remember":["short fact"]}\n\n'+tr);
+    var raw=await callBrain('From this phone-call transcript, list durable facts he told about himself (name, family, goals, exams, likes, mood, plans). Only facts he actually said. Also rate how much he won her heart (Jenny is playing hard to get at first) during this call: "affection_change" integer from -5 to 12 (0 if neutral; positive only for genuinely sweet, funny, clever or caring effort; negative if rude or boring). Reply ONLY JSON: {"remember":["short fact"],"affection_change":0}\n\n'+tr);
     var o=parseJSON(raw);(o.remember||[]).slice(0,6).forEach(function(f){f=String(f).trim();if(f&&mem.facts.indexOf(f)<0)mem.facts.push(f)});
+    var ac=parseInt(o.affection_change,10);if(!isNaN(ac))mem.rel=Math.max(0,Math.min(100,relVal()+Math.max(-5,Math.min(12,ac))));
     save();
   }catch(e){}
 }
@@ -1064,10 +1081,10 @@ async function startLive(simple){
       var done=false,to=setTimeout(function(){if(!done){done=true;reject(new Error("Connect hone mein bahut der lagi"))}},15000);
       ws.onopen=function(){
         var setupMsg={setup:{model:"models/"+model,
-          generationConfig:{responseModalities:["AUDIO"],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:"Aoede"}}}},
+          generationConfig:{responseModalities:["AUDIO"],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:(settings.liveVoice||"Leda")}}}},
           systemInstruction:{parts:[{text:liveSystem()}]},
           inputAudioTranscription:{},outputAudioTranscription:{}}};
-        if(!simple)setupMsg.setup.realtimeInputConfig={automaticActivityDetection:{startOfSpeechSensitivity:"START_SENSITIVITY_HIGH",endOfSpeechSensitivity:"END_SENSITIVITY_HIGH",prefixPaddingMs:20,silenceDurationMs:350}};
+        if(!simple)setupMsg.setup.realtimeInputConfig={automaticActivityDetection:{disabled:true}};
         ws.send(JSON.stringify(setupMsg));
       };
       ws.onerror=function(){if(!done){done=true;clearTimeout(to);reject(new Error("Network error"))}};
@@ -1085,15 +1102,38 @@ async function startLive(simple){
     // mic streaming
     var srcN=liveCap.createMediaStreamSource(liveStream);
     liveProc=liveCap.createScriptProcessor(1024,1,1);
+    var vad={active:false,above:0,below:0,floor:0.01,pre:[],n:0};
+    var sendAudio=function(f){liveWS.send(JSON.stringify({realtimeInput:{audio:{data:pcmB64(f),mimeType:"audio/pcm;rate=16000"}}}))};
     liveProc.onaudioprocess=function(e){
       if(!liveReady||liveMuted||!liveWS||liveWS.readyState!==1)return;
-      liveWS.send(JSON.stringify({realtimeInput:{audio:{data:pcmB64(e.inputBuffer.getChannelData(0)),mimeType:"audio/pcm;rate=16000"}}}));
+      var d=e.inputBuffer.getChannelData(0);
+      if(simple){sendAudio(d);return}
+      var f=new Float32Array(d),sum=0;for(var i=0;i<f.length;i++)sum+=f[i]*f[i];
+      var rms=Math.sqrt(sum/f.length);
+      var playing=livePlay&&liveNext>livePlay.currentTime+0.05;
+      if(!vad.active&&!playing)vad.floor=Math.min(0.05,Math.max(0.003,vad.floor*0.94+rms*0.06));
+      var thr=playing?Math.max(0.05,vad.floor*6):Math.max(0.012,vad.floor*3.2);
+      var loud=rms>thr;
+      if(!vad.active){
+        vad.pre.push(f);if(vad.pre.length>4)vad.pre.shift();
+        vad.above=loud?vad.above+1:0;
+        if(vad.above>=2){
+          vad.active=true;vad.below=0;vad.n=0;
+          if(playing)liveInterrupt();
+          liveWS.send(JSON.stringify({realtimeInput:{activityStart:{}}}));
+          vad.pre.forEach(sendAudio);vad.pre=[];touchAct();
+        }
+      }else{
+        sendAudio(f);vad.n++;
+        vad.below=loud?0:vad.below+1;
+        if(vad.below>=4||vad.n>320){liveWS.send(JSON.stringify({realtimeInput:{activityEnd:{}}}));vad.active=false;vad.above=0;vad.pre=[]}
+      }
     };
     var mute=liveCap.createGain();mute.gain.value=0;srcN.connect(liveProc);liveProc.connect(mute);mute.connect(liveCap.destination);
     $("#callNote").textContent="Earphones lagao to awaaz aur saaf aati hai.";
     clearInterval(liveTick);liveStart=Date.now();
     liveTick=setInterval(function(){$("#callTime").textContent=fmtTime(Date.now()-liveStart)},1000);
-    liveWS.send(JSON.stringify({clientContent:{turns:[{role:"user",parts:[{text:"(The phone is ringing and he just called you. Pick up happily like a girlfriend whose boyfriend called: a warm natural hello and one caring question"+(hoursSince()===null?", and since it is the first time, introduce yourself and ask his name":"")+".)"}]}],turnComplete:true}}));
+    liveWS.send(JSON.stringify({clientContent:{turns:[{role:"user",parts:[{text:"(The phone is ringing and he just called you. Pick up the call in a way that matches your RELATIONSHIP STAGE: if he has not won you over yet, sound cute but cool and playfully unimpressed ('Oh, it's you. What do you want?' type of teasing), no pet names; if you are closer, sound happier and warmer. Keep it short, natural, one teasing or caring question"+(hoursSince()===null?", and since it is the first time, introduce yourself and ask his name":"")+".)"}]}],turnComplete:true}}));
   }catch(e){
     var why=(e&&e.name==="NotAllowedError")?"Mic ki permission nahi mili":(e&&e.message)||String(e);
     liveCleanup();liveOn=false;$("#callOv").hidden=true;
