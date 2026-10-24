@@ -15,29 +15,41 @@ open(man, "w").write(x)
 pkg = "com/shubham/jenny"
 jdir = os.path.join(root, "java", *pkg.split("/"))
 os.makedirs(jdir, exist_ok=True)
-open(os.path.join(jdir, "AudioRoute.java"), "w").write('''package com.shubham.jenny;
+open(os.path.join(jdir, "AudioRoute.java"), "w").write(r'''package com.shubham.jenny;
 
 import android.content.Context;
+import android.media.AudioAttributes;
 import android.media.AudioDeviceInfo;
+import android.media.AudioFormat;
 import android.media.AudioManager;
+import android.media.AudioTrack;
 import android.os.Build;
+import android.util.Base64;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @CapacitorPlugin(name = "AudioRoute")
 public class AudioRoute extends Plugin {
     private int oldMode = AudioManager.MODE_NORMAL;
     private boolean oldSpeaker = false;
     private boolean saved = false;
+    private AudioTrack track = null;
+    private final ExecutorService exec = Executors.newSingleThreadExecutor();
+
+    private AudioManager am() {
+        return (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+    }
 
     @PluginMethod
     public void setEarpiece(PluginCall call) {
         boolean on = call.getBoolean("on", true);
-        AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        AudioManager am = am();
         JSObject ret = new JSObject();
         try {
             if (on) {
@@ -47,10 +59,9 @@ public class AudioRoute extends Plugin {
                 if (Build.VERSION.SDK_INT >= 31) {
                     List<AudioDeviceInfo> devs = am.getAvailableCommunicationDevices();
                     for (AudioDeviceInfo d : devs) {
-                        if (d.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_SCO
-                                || d.getType() == AudioDeviceInfo.TYPE_WIRED_HEADSET
-                                || d.getType() == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
-                                || d.getType() == AudioDeviceInfo.TYPE_USB_HEADSET) {
+                        int t = d.getType();
+                        if (t == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || t == AudioDeviceInfo.TYPE_WIRED_HEADSET
+                                || t == AudioDeviceInfo.TYPE_WIRED_HEADPHONES || t == AudioDeviceInfo.TYPE_USB_HEADSET) {
                             done = am.setCommunicationDevice(d);
                             if (done) break;
                         }
@@ -77,6 +88,79 @@ public class AudioRoute extends Plugin {
             ret.put("error", String.valueOf(e.getMessage()));
         }
         call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void startPlayer(PluginCall call) {
+        JSObject ret = new JSObject();
+        try {
+            stopTrack();
+            int rate = 24000;
+            int min = AudioTrack.getMinBufferSize(rate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT);
+            AudioAttributes attrs = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build();
+            AudioFormat fmt = new AudioFormat.Builder()
+                    .setSampleRate(rate)
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build();
+            track = new AudioTrack(attrs, fmt, Math.max(min * 4, rate * 2), AudioTrack.MODE_STREAM, AudioManager.AUDIO_SESSION_ID_GENERATE);
+            track.play();
+            ret.put("ok", true);
+        } catch (Exception e) {
+            track = null;
+            ret.put("ok", false);
+            ret.put("error", String.valueOf(e.getMessage()));
+        }
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void write(PluginCall call) {
+        final String data = call.getString("data", "");
+        final AudioTrack t = track;
+        if (t != null && data != null && data.length() > 0) {
+            exec.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        byte[] b = Base64.decode(data, Base64.DEFAULT);
+                        t.write(b, 0, b.length);
+                    } catch (Exception e) { }
+                }
+            });
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void flush(PluginCall call) {
+        final AudioTrack t = track;
+        if (t != null) {
+            try {
+                t.pause();
+                t.flush();
+                t.play();
+            } catch (Exception e) { }
+        }
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void stopPlayer(PluginCall call) {
+        stopTrack();
+        call.resolve();
+    }
+
+    private void stopTrack() {
+        AudioTrack t = track;
+        track = null;
+        if (t != null) {
+            try { t.stop(); } catch (Exception e) { }
+            try { t.release(); } catch (Exception e) { }
+        }
     }
 }
 ''')
