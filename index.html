@@ -1203,7 +1203,8 @@ async function startLive(simple){
       }
     };
     var mute=liveCap.createGain();mute.gain.value=0;srcN.connect(liveProc);liveProc.connect(mute);mute.connect(liveCap.destination);
-    $("#callNote").textContent=liveNote||"Earphones lagao to awaaz aur saaf aati hai.";
+    var diag=" [v14 cap:"+(window.Capacitor?"yes":"no")+" native:"+((window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())?"yes":"no")+" player:"+(liveNative?"yes":"no")+"]";
+    $("#callNote").textContent=(liveNote||"Earphones lagao to awaaz aur saaf aati hai.")+diag;
     clearInterval(liveTick);liveStart=Date.now();
     liveTick=setInterval(function(){$("#callTime").textContent=fmtTime(Date.now()-liveStart)},1000);
     liveWS.send(JSON.stringify({clientContent:{turns:[{role:"user",parts:[{text:"(The phone is ringing and he just called you. Pick up the call in a way that matches your RELATIONSHIP STAGE: if he has not won you over yet, sound cute but cool and playfully unimpressed ('Oh, it's you. What do you want?' type of teasing), no pet names; if you are closer, sound happier and warmer. Keep it short, natural, one teasing or caring question"+(hoursSince()===null?", and since it is the first time, introduce yourself and ask his name":"")+".)"}]}],turnComplete:true}}));
