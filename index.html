@@ -1206,7 +1206,7 @@ async function startLive(simple){
       }
     };
     var mute=liveCap.createGain();mute.gain.value=0;srcN.connect(liveProc);liveProc.connect(mute);mute.connect(liveCap.destination);
-    var diag=" [v14 cap:"+(window.Capacitor?"yes":"no")+" native:"+((window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())?"yes":"no")+" player:"+(liveNative?"yes":"no")+(window.__ARerr?" err:"+window.__ARerr:"")+"]";
+    var diag=" [v15 cap:"+(window.Capacitor?"yes":"no")+" native:"+((window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())?"yes":"no")+" player:"+(liveNative?"yes":"no")+(window.__ARerr?" err:"+window.__ARerr:"")+"]";
     $("#callNote").textContent=(liveNote||"Earphones lagao to awaaz aur saaf aati hai.")+diag;
     clearInterval(liveTick);liveStart=Date.now();
     liveTick=setInterval(function(){$("#callTime").textContent=fmtTime(Date.now()-liveStart)},1000);
