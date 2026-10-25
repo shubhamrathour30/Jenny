@@ -669,7 +669,10 @@ async function callBrain(prompt){
 function parseJSON(t){
   var a=t.indexOf("{"),b=t.lastIndexOf("}");
   if(a<0||b<a)return {reply:t.trim().slice(0,400),emotion:"calm",correction:null};
-  try{return JSON.parse(t.slice(a,b+1))}catch(e){return {reply:t.replace(/[{}"]/g,"").slice(0,400),emotion:"calm",correction:null}}
+  try{return JSON.parse(t.slice(a,b+1))}catch(e){
+    var mr=t.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/),me=t.match(/"emotion"\s*:\s*"(\w+)"/),mg=t.match(/"gist"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    var rp=mr?mr[1].replace(/\\n/g," ").replace(/\\"/g,'"'):t.replace(/^[\s\S]*?reply"?\s*:\s*"?/,"").split(/"?\s*,\s*"?(emotion|correction|gist)/)[0].replace(/[{}"`]/g,"");
+    return {reply:rp.slice(0,400),emotion:me?me[1]:"calm",correction:null,gist:mg?mg[1]:""}}
 }
 
 /* ---------- conversation ---------- */
