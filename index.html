@@ -1135,7 +1135,7 @@ async function startLive(simple){
     var AC=window.AudioContext||window.webkitAudioContext;
     livePlay=new AC({sampleRate:24000});try{await livePlay.resume()}catch(e){}
     await liveRoute();
-    try{if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&settings.earpiece!==false){window.__AR=window.__AR||Capacitor.registerPlugin("AudioRoute");await window.__AR.setEarpiece({on:true});var stp=await window.__AR.startPlayer();liveNative=!!(stp&&stp.ok)}}catch(e){liveNative=false}
+    try{if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&settings.earpiece!==false){window.__ARerr="";window.__AR=window.__AR||Capacitor.registerPlugin("AudioRoute");try{await window.__AR.setEarpiece({on:true})}catch(e1){window.__ARerr+="ear:"+(e1&&(e1.message||e1.code||e1))+" "}var stp=await window.__AR.startPlayer();liveNative=!!(stp&&stp.ok);if(!liveNative)window.__ARerr+="sp:"+((stp&&stp.error)||"notok")}}catch(e){liveNative=false;window.__ARerr=(window.__ARerr||"")+"x:"+(e&&(e.message||e.code||e))}
     liveSpk=false;
     if(liveNative){
       var sb=$("#cbSpk");sb.style.display="";sb.classList.remove("on");sb.textContent="Speaker";
@@ -1203,7 +1203,7 @@ async function startLive(simple){
       }
     };
     var mute=liveCap.createGain();mute.gain.value=0;srcN.connect(liveProc);liveProc.connect(mute);mute.connect(liveCap.destination);
-    var diag=" [v14 cap:"+(window.Capacitor?"yes":"no")+" native:"+((window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())?"yes":"no")+" player:"+(liveNative?"yes":"no")+"]";
+    var diag=" [v14 cap:"+(window.Capacitor?"yes":"no")+" native:"+((window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())?"yes":"no")+" player:"+(liveNative?"yes":"no")+(window.__ARerr?" err:"+window.__ARerr:"")+"]";
     $("#callNote").textContent=(liveNote||"Earphones lagao to awaaz aur saaf aati hai.")+diag;
     clearInterval(liveTick);liveStart=Date.now();
     liveTick=setInterval(function(){$("#callTime").textContent=fmtTime(Date.now()-liveStart)},1000);
