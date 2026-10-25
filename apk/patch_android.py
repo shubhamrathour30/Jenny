@@ -91,6 +91,57 @@ public class AudioRoute extends Plugin {
     }
 
     @PluginMethod
+    public void setSpeaker(PluginCall call) {
+        boolean on = call.getBoolean("on", false);
+        AudioManager am = am();
+        JSObject ret = new JSObject();
+        try {
+            if (!saved) { oldMode = am.getMode(); oldSpeaker = am.isSpeakerphoneOn(); saved = true; }
+            am.setMode(AudioManager.MODE_IN_COMMUNICATION);
+            boolean done = false;
+            String name = "";
+            if (Build.VERSION.SDK_INT >= 31) {
+                List<AudioDeviceInfo> devs = am.getAvailableCommunicationDevices();
+                if (on) {
+                    for (AudioDeviceInfo d : devs) {
+                        if (d.getType() == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+                            done = am.setCommunicationDevice(d);
+                            name = "speaker";
+                            break;
+                        }
+                    }
+                } else {
+                    for (AudioDeviceInfo d : devs) {
+                        int t = d.getType();
+                        if (t == AudioDeviceInfo.TYPE_BLUETOOTH_SCO || t == AudioDeviceInfo.TYPE_WIRED_HEADSET
+                                || t == AudioDeviceInfo.TYPE_WIRED_HEADPHONES || t == AudioDeviceInfo.TYPE_USB_HEADSET) {
+                            done = am.setCommunicationDevice(d);
+                            name = "headset";
+                            if (done) break;
+                        }
+                    }
+                    if (!done) {
+                        for (AudioDeviceInfo d : devs) {
+                            if (d.getType() == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE) {
+                                done = am.setCommunicationDevice(d);
+                                name = "earpiece";
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (!done) { am.setSpeakerphoneOn(on); name = on ? "speaker" : "earpiece"; }
+            ret.put("ok", true);
+            ret.put("route", name);
+        } catch (Exception e) {
+            ret.put("ok", false);
+            ret.put("error", String.valueOf(e.getMessage()));
+        }
+        call.resolve(ret);
+    }
+
+    @PluginMethod
     public void startPlayer(PluginCall call) {
         JSObject ret = new JSObject();
         try {

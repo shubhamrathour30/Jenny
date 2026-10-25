@@ -205,6 +205,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
     <div class="cap"><div class="capj" id="capJ"></div><div class="capy" id="capY"></div></div>
     <div class="cbtns">
       <button class="cb" id="cbMute" aria-pressed="false">Mute</button>
+      <button class="cb" id="cbSpk" style="display:none">Speaker</button>
       <button class="cb end" id="cbEnd">End</button>
       <button class="cb" id="cbTalk">Tap to talk</button>
     </div>
@@ -992,7 +993,7 @@ setInterval(function(){
 
 
 /* ---------- LIVE VOICE CALL (Gemini Live: real-time voice, interruptions, emotion) ---------- */
-var liveNative=false, liveNativeEnd=0, liveGain=null, liveOut=null, livePC=null, liveAudioEl=null, liveOn=false, liveWS=null, liveReady=false, liveMuted=false, liveStream=null, liveCap=null, liveProc=null, livePlay=null, liveNext=0, liveSrcs=[], liveStart=0, liveTick=null, liveJ="", liveY="", liveLog=[], liveEnded=false, liveSpeakT=null, liveOld={};
+var liveSpk=false, liveNote="", liveNative=false, liveNativeEnd=0, liveGain=null, liveOut=null, livePC=null, liveAudioEl=null, liveOn=false, liveWS=null, liveReady=false, liveMuted=false, liveStream=null, liveCap=null, liveProc=null, livePlay=null, liveNext=0, liveSrcs=[], liveStart=0, liveTick=null, liveJ="", liveY="", liveLog=[], liveEnded=false, liveSpeakT=null, liveOld={};
 function geminiKeyOf(){return (settings.key||"").split(/[\s,;]+/).filter(function(x){return /^(AIza|AQ\.)/.test(x)})[0]||""}
 function liveAvailable(){return settings.live!==false&&!!geminiKeyOf()&&!!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)&&typeof WebSocket!=="undefined"&&!sampleFn}
 async function liveModelName(k){
@@ -1088,7 +1089,7 @@ function liveCleanup(){
   try{livePlay&&livePlay.close()}catch(e){}
   try{livePC&&livePC.forEach(function(p){p.close()})}catch(e){}livePC=null;try{liveAudioEl&&(liveAudioEl.srcObject=null,liveAudioEl.remove())}catch(e){}liveAudioEl=null;liveOut=null;
   try{liveWS&&liveWS.close()}catch(e){}
-  try{if(window.__AR){if(liveNative)window.__AR.stopPlayer();window.__AR.setEarpiece({on:false})}}catch(e){}liveNative=false;liveNativeEnd=0;
+  try{if(window.__AR){if(liveNative)window.__AR.stopPlayer();window.__AR.setEarpiece({on:false})}}catch(e){}liveNative=false;liveNativeEnd=0;try{$("#cbSpk").style.display="none"}catch(e){}
   liveProc=liveStream=liveCap=livePlay=liveWS=liveGain=null;liveReady=false;liveSrcs=[];liveNext=0;
   try{wakeLock&&wakeLock.release()}catch(e){};wakeLock=null;
   av("speaking",false);
@@ -1135,6 +1136,12 @@ async function startLive(simple){
     livePlay=new AC({sampleRate:24000});try{await livePlay.resume()}catch(e){}
     await liveRoute();
     try{if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()&&settings.earpiece!==false){window.__AR=window.__AR||Capacitor.registerPlugin("AudioRoute");await window.__AR.setEarpiece({on:true});var stp=await window.__AR.startPlayer();liveNative=!!(stp&&stp.ok)}}catch(e){liveNative=false}
+    liveSpk=false;
+    if(liveNative){
+      var sb=$("#cbSpk");sb.style.display="";sb.classList.remove("on");sb.textContent="Speaker";
+      sb.onclick=async function(){liveSpk=!liveSpk;sb.classList.toggle("on",liveSpk);sb.textContent=liveSpk?"Earpiece":"Speaker";try{var r=await window.__AR.setSpeaker({on:liveSpk});$("#callNote").textContent=(r&&r.ok)?("Awaaz: "+(liveSpk?"speaker":(r.route||"earpiece"))):"Route nahi badla: "+((r&&r.error)||"")}catch(e){$("#callNote").textContent="Naya APK install karo (speaker button ke liye)"}};
+      try{var r0=await window.__AR.setSpeaker({on:false});liveNote="Awaaz: "+((r0&&r0.route)||"earpiece")+". Speaker dabao to loudspeaker."}catch(e){liveNote="Is app ka naya APK install karo, tab earpiece chalega."}
+    }else if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform())liveNote="Naya APK install karo, tab earpiece aur speaker button chalega.";
     liveGain=livePlay.createGain();liveGain.gain.value=(settings.liveVol||0.6);liveGain.connect(liveOut||livePlay.destination);
     $("#liveVol").value=settings.liveVol||0.6;
     $("#liveVol").oninput=function(){var v=parseFloat(this.value);settings.liveVol=v;if(liveGain)liveGain.gain.value=v;lsSave(LS_SET,settings)};
@@ -1196,7 +1203,7 @@ async function startLive(simple){
       }
     };
     var mute=liveCap.createGain();mute.gain.value=0;srcN.connect(liveProc);liveProc.connect(mute);mute.connect(liveCap.destination);
-    $("#callNote").textContent="Earphones lagao to awaaz aur saaf aati hai.";
+    $("#callNote").textContent=liveNote||"Earphones lagao to awaaz aur saaf aati hai.";
     clearInterval(liveTick);liveStart=Date.now();
     liveTick=setInterval(function(){$("#callTime").textContent=fmtTime(Date.now()-liveStart)},1000);
     liveWS.send(JSON.stringify({clientContent:{turns:[{role:"user",parts:[{text:"(The phone is ringing and he just called you. Pick up the call in a way that matches your RELATIONSHIP STAGE: if he has not won you over yet, sound cute but cool and playfully unimpressed ('Oh, it's you. What do you want?' type of teasing), no pet names; if you are closer, sound happier and warmer. Keep it short, natural, one teasing or caring question"+(hoursSince()===null?", and since it is the first time, introduce yourself and ask his name":"")+".)"}]}],turnComplete:true}}));
