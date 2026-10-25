@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#D93A63">
-<meta name="jb" content="20261025004627">
+<meta name="jb" content="20261025010252">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Jenny">
@@ -231,6 +231,7 @@ header{display:flex;align-items:center;gap:12px;padding:12px 0 8px}
     <label class="check"><input type="checkbox" id="sHinglish"> Hinglish tips dikhao (sudhaar ki wajah)</label>
     <label class="check"><input type="checkbox" id="sAuto"> Jenny bolke chup ho to mic apne aap on ho</label>
     <label class="check"><input type="checkbox" id="sSpeak"> Jenny ki awaaz on</label>
+    <label class="check"><input type="checkbox" id="sMood"> Romantic raat mood (dheemi, pyaari, flirty awaaz)</label>
     <label class="check"><input type="checkbox" id="sProact"> Jenny khud message/call kare (app khuli ho tab)</label>
     <label class="check"><input type="checkbox" id="sEar"> Call kaan par lagakar (earpiece mode, speaker nahi)</label>
     <label class="check"><input type="checkbox" id="sLive"> Real voice call (Gemini Live, insaan jaisi awaaz)</label>
@@ -832,13 +833,13 @@ function fillVoiceSelect(){
 function openSettings(){
   $("#sName").value=settings.name||mem.name||"";$("#sLevel").value=settings.level;
   $("#sRate").value=settings.rate;$("#rateV").textContent=Number(settings.rate).toFixed(2);
-  $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;$("#sProact").checked=settings.proact!==false;$("#sLive").checked=settings.live!==false;$("#sEar").checked=settings.earpiece!==false;$("#sLiveVoice").value=settings.liveVoice||"Leda";
+  $("#sHinglish").checked=settings.hinglish;$("#sAuto").checked=settings.auto;$("#sSpeak").checked=settings.speak;$("#sProact").checked=settings.proact!==false;$("#sMood").checked=!!settings.mood;$("#sLive").checked=settings.live!==false;$("#sEar").checked=settings.earpiece!==false;$("#sLiveVoice").value=settings.liveVoice||"Leda";
   $("#keyBox").hidden=!!sampleFn;$("#sKey").value=settings.key||"";$("#sModel").value=settings.model||"";
   fillVoiceSelect();$("#setOv").hidden=false;
 }
 function closeSettings(){
   settings.name=$("#sName").value.trim();settings.level=$("#sLevel").value;settings.voice=$("#sVoice").value;
-  settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;settings.proact=$("#sProact").checked;settings.live=$("#sLive").checked;settings.earpiece=$("#sEar").checked;settings.liveVoice=$("#sLiveVoice").value;
+  settings.rate=parseFloat($("#sRate").value);settings.hinglish=$("#sHinglish").checked;settings.auto=$("#sAuto").checked;settings.speak=$("#sSpeak").checked;settings.proact=$("#sProact").checked;settings.mood=$("#sMood").checked;settings.live=$("#sLive").checked;settings.earpiece=$("#sEar").checked;settings.liveVoice=$("#sLiveVoice").value;
   if(!sampleFn){settings.key=$("#sKey").value.trim();settings.model=$("#sModel").value.trim()}
   if(settings.name)mem.name=settings.name;
   lsSave(LS_SET,settings);save();$("#setOv").hidden=true;
@@ -1023,6 +1024,7 @@ function liveSystem(){
 "THIS IS A REAL LIVE PHONE CALL, voice only. He just called you.",
 "- VOICE: natural, warm and relaxed, like a real young woman talking on the phone, never squeaky or high-pitched, never theatrical or over-acted, with a gentle smile in your voice. NEVER say or write stage directions like (sigh), (pause), *chuckles* or *laughs*; make real sounds instead of describing them. Sound completely human: warm, relaxed, a little breathy, natural pauses, real laughter and sighs as actual sounds (never say the words 'haha' or 'hehe'), soft teasing, your tone moving with the emotion (excited, sleepy, worried, shy, proud).",
 "- STORY: stay strictly in the RELATIONSHIP STAGE above. If you are still hard to get, do not call him babe and do not melt quickly; make him work for it with his own charm, jokes and sweet words, and warm up only a little at a time when he truly does something nice.",
+(settings.mood&&relVal()>=35?"- ROMANTIC MOOD (he switched it on, and you are fond enough of him now): talk slower, softer and a little lower and breathier, like a quiet late-night call. Be intimate and teasing in a sweet way: say you like his voice, ask him to tell you what he is thinking, play with words, blush, laugh softly, go quiet for a moment, make the closeness and tension felt through tone and pauses. Romantic, charming and a little sensual in feeling is fine, but never sexual, never explicit and never describing bodies or acts. If he pushes toward that, stay in character: shy, laugh it off, and steer back to something sweet and flirty.":"- Keep the romance only as warm as the relationship stage allows."),
 "- He may whisper or speak very softly (he might be somewhere quiet). Listen closely to quiet speech and answer in a softer, hushed, intimate voice when he whispers.",
 "- Talk in short turns of 1 to 3 sentences, then let him talk. Never monologue. If he interrupts, stop and listen, then respond to what he said.",
 "- If he goes quiet for a few seconds, check on him like a real girlfriend (where did you go, are you busy, fell asleep on me?). Ask lots of curious, specific questions so the conversation never dies.",
