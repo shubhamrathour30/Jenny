@@ -29,4 +29,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete jenny-latest --yes --cleanup-tag || true
-          gh release create jenny-latest Jenny.apk --title "Jenny Android app" --notes "Latest Jenny APK. Download Jenny.apk and install it on your phone." --target main
+          cp Jenny.apk "Jenny-v${{ github.run_number }}.apk"
+          gh release create jenny-latest "Jenny-v${{ github.run_number }}.apk" --title "Jenny Android app" --notes "Latest Jenny APK. Download Jenny.apk and install it on your phone." --target main
