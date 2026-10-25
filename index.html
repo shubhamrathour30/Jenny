@@ -2,6 +2,7 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#D93A63">
+<meta name="jb" content="20261025003757">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Jenny">
@@ -1281,6 +1282,7 @@ $("#callIn").addEventListener("keydown",function(e){if(e.key==="Enter"){e.preven
   var b=document.getElementById("btnInstall");
   if(b)b.onclick=function(){if(!dp)return;dp.prompt();dp.userChoice.finally(function(){dp=null;b.hidden=true})};
   window.addEventListener("appinstalled",function(){if(b)b.hidden=true});
+  try{var __me=(document.querySelector('meta[name=jb]')||{}).content;if(__me&&!sessionStorage.getItem("jb_r")){fetch(location.pathname,{cache:"no-cache"}).then(function(r){return r.text()}).then(function(t){var m=t.match(/name="jb" content="([^"]+)"/);if(m&&m[1]!==__me){try{sessionStorage.setItem("jb_r","1")}catch(e){}location.reload()}}).catch(function(){})}}catch(e){}
   if("serviceWorker" in navigator){
     var had=!!navigator.serviceWorker.controller, reloaded=false;
     navigator.serviceWorker.register("sw.js").then(function(r){r.update()}).catch(function(){});
